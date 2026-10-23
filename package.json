@@ -4,9 +4,11 @@
   "private": true,
   "description": "小程序交易核心的本地验证入口，不启动微信运行环境",
   "scripts": {
-    "test": "node --test test/order-core.test.js test/payment-refund.test.js test/staff-auth.test.js test/inventory-service.test.js test/application.test.js test/merchant-rejection.test.js test/order-expiry-job.test.js test/trade-client.test.js test/checkout-attempt.test.js test/trade-client-integration.test.js",
+    "test": "node --test test/order-core.test.js test/payment-refund.test.js test/staff-auth.test.js test/inventory-service.test.js test/application.test.js test/merchant-rejection.test.js test/order-expiry-job.test.js test/trade-client.test.js test/checkout-attempt.test.js test/trade-client-integration.test.js test/owner-bootstrap.test.js test/legacy-migration.test.js test/migration-cli.test.js",
     "demo:core": "node scripts/demo-core.js",
-    "demo:client": "node scripts/demo-client.js"
+    "demo:client": "node scripts/demo-client.js",
+    "demo:setup": "node scripts/demo-setup.js",
+    "prepare:legacy": "node scripts/prepare-legacy-data.js"
   },
   "engines": { "node": ">=20" }
 }
