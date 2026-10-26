@@ -17,7 +17,8 @@ class AddressService {
       const result = await page(tx, 'addresses', { filters: [{ field: 'ownerOpenid', value: actor.openid },
         { field: 'deleted', op: 'ne', value: true }], scope: actor.openid, cursor: input.cursor,
       limit: input.limit, sortBy: '_id', desc: false });
-      return { ...result, items: result.items.map(address => addressView(address, user?.defaultAddressId)) };
+      return { ...result, defaultAddressId: user?.defaultAddressId ?? null,
+        items: result.items.map(address => addressView(address, user?.defaultAddressId)) };
     });
   }
 

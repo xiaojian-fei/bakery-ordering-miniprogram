@@ -1,3 +1,4 @@
 'use strict';
 const { registerMiniappPage } = require('../../services/miniapp-entry');
-registerMiniappPage({ legacy: () => require('./address.legacy') });
+const { createAddressPage } = require('../../services/miniapp-pages');
+registerMiniappPage({ legacy: () => require('./address.legacy'), createPage: createAddressPage });

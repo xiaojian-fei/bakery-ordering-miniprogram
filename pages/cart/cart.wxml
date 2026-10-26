@@ -38,6 +38,7 @@
 </view>
 <view wx:else class="cart-container">
   <view class="runtime-notice">{{runtimeNotice}}</view>
+  <button size="mini" bindtap="openAddresses">查看收货地址</button>
   <view wx:if="{{error}}" class="runtime-error">{{error}}<button size="mini" bindtap="loadCart">重试加载</button></view>
   <view wx:if="{{loading}}">加载中…</view>
   <view wx:if="{{cartWritePending}}" class="runtime-error">上次修改结果待确认

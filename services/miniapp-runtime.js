@@ -1,7 +1,7 @@
 'use strict';
 const { TradeApiError, copyData } = require('./trade-errors');
 
-const routes = Object.freeze(['/pages/index/index', '/pages/detail/detail', '/pages/cart/cart']);
+const routes = Object.freeze(['/pages/index/index', '/pages/detail/detail', '/pages/cart/cart', '/pages/address/address']);
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);
 
 // 平台无关的页面运行时。client使用可信send；requestId由调用方提供，不能在失败重试时重建。
@@ -55,6 +55,7 @@ function createMiniappRuntime({ client, subjectId = null, requestId } = {}) {
     isRouteAvailable: path => routes.includes(path),
     hasPendingCartWrite: () => pending !== null,
     async readCart() { await assertIdentity(); return client.cart.get(); },
+    async readAddresses(input = {}) { await assertIdentity(); return client.addresses.list(input); },
     addProduct: productId => exclusive(async () => {
       if (pending) throw new TradeApiError('CART_RECOVERY_REQUIRED');
       await assertIdentity();

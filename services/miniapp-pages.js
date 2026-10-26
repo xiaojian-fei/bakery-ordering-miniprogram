@@ -45,6 +45,7 @@ function base({ runtime, wx, app }) {
     },
     goToAdmin() { wx.showToast({ title: '管理页尚未接入新接口', icon: 'none' }); },
     goToOrder() { wx.showToast({ title: '结算页尚未接入新接口', icon: 'none' }); },
+    openAddresses() { wx.navigateTo({ url: '/pages/address/address' }); },
     makePhoneCall(event) {
       const value = event.currentTarget.dataset.phone;
       if (typeof value === 'string' && value) wx.makePhoneCall({ phoneNumber: value });
@@ -187,4 +188,41 @@ function createCartPage(dependencies) {
     }
   };
 }
-module.exports = { createCatalogPage, createDetailPage, createCartPage };
+function createAddressPage({ runtime, wx }) {
+  const editingUnavailable = () => wx.showToast({ title: '地址新增、编辑和删除尚未接入', icon: 'none' });
+  return {
+    data: { unifiedMode: true, addresses: [], cursor: null, loading: false, loadingMore: false, error: '',
+      runtimeNotice: '当前仅支持查看本人地址；新增、编辑、删除及结算选择待接入。' },
+    onLoad() {},
+    onShow() { this._active = true; return this.refreshAddresses(); },
+    onHide() { deactivate(this); }, onUnload() { deactivate(this); },
+    refreshAddresses() { return this.loadAddresses(false); },
+    loadMore() { return this.loadAddresses(true); },
+    async loadAddresses(more = false) {
+      if (!this._active || (more && (this.data.loading || this.data.loadingMore || !this.data.cursor))) return;
+      const epoch = this._epoch = (this._epoch || 0) + 1;
+      const cursor = more ? this.data.cursor : null;
+      this.setData(more ? { loadingMore: true, error: '' }
+        : { loading: true, loadingMore: false, addresses: [], cursor: null, error: '' });
+      try {
+        const result = await runtime.readAddresses({ limit: 20, ...(cursor ? { cursor } : {}) });
+        if (!this._active || this._epoch !== epoch) return;
+        if (!Array.isArray(result?.items) || !(result.defaultAddressId === null || typeof result.defaultAddressId === 'string')
+          || !(result.nextCursor === null || typeof result.nextCursor === 'string')) throw new TradeApiError('PROTOCOL_ERROR');
+        const items = (more ? this.data.addresses : []).concat(result.items);
+        // 追加页携带同次事务读到的默认指针，不能保留前页已过时的默认标记。
+        const addresses = [...new Map(items.map(item => [item._id, item])).values()]
+          .map(item => ({ ...item, isDefault: item._id === result.defaultAddressId }));
+        this.setData({ addresses, cursor: result.nextCursor });
+      } catch (error) {
+        if (this._active && this._epoch === epoch) this.setData({ error: errorText(error),
+          ...(error?.code === 'SESSION_CHANGED' ? { addresses: [], cursor: null } : {}) });
+      } finally {
+        if (this._active && this._epoch === epoch) this.setData({ loading: false, loadingMore: false });
+      }
+    },
+    selectAddress() { wx.showToast({ title: '地址选择将在结算页接入后开放', icon: 'none' }); },
+    addAddress: editingUnavailable, editAddress: editingUnavailable, deleteAddress: editingUnavailable
+  };
+}
+module.exports = { createCatalogPage, createDetailPage, createCartPage, createAddressPage };
