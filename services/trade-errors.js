@@ -35,6 +35,8 @@ const hints = Object.freeze({
   AFTER_SALE_PENDING: ['售后已批准，等待退款处理', 'refresh'],
   INVALID_PICKUP_CODE: ['自取核销码不正确或已使用', 'edit'],
   REPORT_TOO_LARGE: ['数据量过大，请缩小统计日期范围', 'edit'],
+  CART_WRITE_BUSY: ['购物车正在修改，请稍候', 'wait'],
+  CART_RECOVERY_REQUIRED: ['上次购物车修改结果待确认，请先重试原修改', 'check_then_retry'],
   INVALID_CHECKOUT_DRAFT: ['结算草稿已损坏，请核对订单后重新准备', 'review'],
   CHECKOUT_STORAGE_ERROR: ['结算草稿无法保存，请检查本地存储', 'review'],
   CHECKOUT_RECOVERY_REQUIRED: ['有结果未确认的结算，请先找回或核对原订单', 'check_then_retry'],

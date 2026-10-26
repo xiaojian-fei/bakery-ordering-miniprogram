@@ -1,5 +1,5 @@
 <!-- pages/cart/cart.wxml -->
-<view class="cart-container">
+<view wx:if="{{!unifiedMode}}" class="cart-container">
   <view class="delivery-options">
     <text>配送方式：</text>
     <radio-group bindchange="onDeliveryTypeChange">
@@ -34,6 +34,31 @@
   <view class="total-bar">
     <text>总计：¥{{totalPrice}}</text>
     <button type="primary" bindtap="goToOrder">去下单</button>
+  </view>
+</view>
+<view wx:else class="cart-container">
+  <view class="runtime-notice">{{runtimeNotice}}</view>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}<button size="mini" bindtap="loadCart">重试加载</button></view>
+  <view wx:if="{{loading}}">加载中…</view>
+  <view wx:if="{{cartWritePending}}" class="runtime-error">上次修改结果待确认
+    <button size="mini" bindtap="retryCartWrite" disabled="{{cartBusy || loading}}">重试上次修改</button>
+  </view>
+  <view class="cart-list">
+    <view wx:for="{{cartItems}}" wx:key="productId" class="cart-item">
+      <view class="cart-emoji">{{item.emoji}}</view>
+      <view class="cart-info"><text>{{item.name}}</text><text>¥{{item.price}}</text>
+        <text wx:if="{{item.issue}}" class="runtime-error">{{item.issueText}}</text>
+      </view>
+      <view class="quantity-control">
+        <button size="mini" bindtap="changeQuantity" data-id="{{item.productId}}" data-op="minus" disabled="{{cartBusy || loading || cartWritePending}}">-</button>
+        <text>{{item.quantity}}</text>
+        <button size="mini" bindtap="changeQuantity" data-id="{{item.productId}}" data-op="plus" disabled="{{cartBusy || loading || cartWritePending || item.quantity >= 99 || item.issue}}">+</button>
+      </view>
+    </view>
+    <view wx:if="{{!loading && !error && cartItems.length === 0}}" class="empty-cart">购物车空空如也～</view>
+  </view>
+  <view class="total-bar"><text>商品估算：¥{{totalPrice}}（不含运费）</text>
+    <button bindtap="goToOrder">结算待接入</button>
   </view>
 </view>
 <custom-tab-bar />

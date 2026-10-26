@@ -9,6 +9,7 @@
     "demo:client": "node scripts/demo-client.js",
     "demo:setup": "node scripts/demo-setup.js",
     "demo:workflows": "node scripts/demo-workflows.js",
+    "demo:miniapp": "node scripts/demo-miniapp-pages.js",
     "preview:local": "node scripts/local-workbench.js",
     "prepare:legacy": "node scripts/prepare-legacy-data.js"
   },

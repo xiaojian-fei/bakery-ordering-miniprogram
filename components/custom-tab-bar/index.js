@@ -32,6 +32,11 @@ Component({
   methods: {
     switchTab(e) {
       const path = e.currentTarget.dataset.path;
+      const runtime = getApp().tradeRuntime;
+      if (runtime && !runtime.isRouteAvailable(path)) {
+        wx.showToast({ title: '此页面尚未接入新接口', icon: 'none' });
+        return;
+      }
       wx.switchTab({ url: path });
     },
     updateSelected() {

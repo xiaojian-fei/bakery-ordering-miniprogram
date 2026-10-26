@@ -1,15 +1,24 @@
 <!-- pages/detail/detail.wxml -->
 <view class="detail-container">
+  <view wx:if="{{unifiedMode}}" class="runtime-notice">{{runtimeNotice}}</view>
+  <view wx:if="{{loading}}">加载中…</view>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}<button size="mini" bindtap="loadProduct">重试加载</button></view>
+  <view wx:if="{{unifiedMode && cartWritePending}}" class="runtime-error">上次修改结果待确认
+    <button size="mini" bindtap="retryCartWrite" disabled="{{cartBusy}}">重试上次修改</button>
+  </view>
+  <block wx:if="{{product}}">
   <view class="detail-image">
-    <image wx:if="{{product.image}}" src="{{product.image}}" mode="widthFix"></image>
+    <image wx:if="{{product.image && (!unifiedMode || product.hasImage)}}" src="{{product.image}}" mode="widthFix"></image>
     <view wx:else class="detail-emoji">{{product.emoji}}</view>
   </view>
   <view class="detail-info">
     <text class="detail-name">{{product.name}}</text>
     <text class="detail-price">¥{{product.price}}</text>
     <text class="detail-desc">{{product.desc}}</text>
+    <text wx:if="{{unifiedMode}}">可售 {{product.available}} 件</text>
   </view>
   <view class="action-bar">
-    <button class="buy-btn" bindtap="addToCart">加入购物车</button>
+    <button class="buy-btn" bindtap="addToCart" disabled="{{unifiedMode && (cartBusy || cartWritePending || product.available < 1)}}">加入购物车</button>
   </view>
+  </block>
 </view>

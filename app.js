@@ -1,20 +1,33 @@
 // app.js
+const tradeRuntime = require('./services/miniapp-config');
 App({
+  tradeRuntime,
   onLaunch() {
+    this.globalData.tabBarInstances = [];
+    if (this.tradeRuntime) {
+      // 新模式只通过统一客户端访问数据，不初始化或降级到旧云数据库。
+      return this.getUserOpenId();
+    }
     if (!wx.cloud) {
       console.error('请使用 2.2.3 或以上基础库');
+      return;
     } else {
       wx.cloud.init({
         env: 'YOUR_CLOUD_ENV_ID', // 替换为你的云环境ID
         traceUser: true,
       });
     }
-    this.globalData.tabBarInstances = [];
     this.getUserOpenId();
   },
 
   async getUserOpenId() {
     try {
+      if (this.tradeRuntime) {
+        await this.tradeRuntime.assertIdentity();
+        this.globalData.openid = this.tradeRuntime.subjectId;
+        await this.updateCartCount();
+        return;
+      }
       const { result } = await wx.cloud.callFunction({ name: 'login' });
       this.globalData.openid = result.openid;
       wx.setStorageSync('openid', result.openid);
@@ -26,6 +39,13 @@ App({
   },
 
   async updateCartCount() {
+    if (this.tradeRuntime) {
+      const cart = await this.tradeRuntime.readCart();
+      const count = cart.items.reduce((total, item) => total + item.quantity, 0);
+      this.globalData.cartCount = count;
+      this.notifyTabBarUpdate(count);
+      return count;
+    }
     const openid = this.globalData.openid;
     if (!openid) return this.globalData.cartCount;
     const db = wx.cloud.database();
