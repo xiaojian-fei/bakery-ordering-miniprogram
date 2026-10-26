@@ -28,6 +28,13 @@ const hints = Object.freeze({
   RESERVED_STOCK_CONFLICT: ['实物库存不能低于已预留数量', 'refresh'],
   AFTER_SALE_NOT_APPROVED: ['售后尚未通过审核，请刷新', 'refresh'],
   ALREADY_REFUNDED: ['订单已完成整单退款，请刷新', 'refresh'],
+  ADDRESS_NOT_FOUND: ['地址不存在或已删除，请重新选择', 'edit'],
+  INVALID_CURSOR: ['分页条件已变化，请刷新列表', 'refresh'],
+  AFTER_SALE_EXISTS: ['订单已有处理中售后，请查看进度', 'refresh'],
+  AFTER_SALE_NOT_FOUND: ['售后记录不存在，请刷新', 'refresh'],
+  AFTER_SALE_PENDING: ['售后已批准，等待退款处理', 'refresh'],
+  INVALID_PICKUP_CODE: ['自取核销码不正确或已使用', 'edit'],
+  REPORT_TOO_LARGE: ['数据量过大，请缩小统计日期范围', 'edit'],
   NETWORK_ERROR: ['连接中断，操作结果可能尚未确认，请先核对再重试', 'check_then_retry'],
   PROTOCOL_ERROR: ['服务响应异常，请先核对操作结果', 'check_then_retry'],
   INTERNAL_ERROR: ['服务暂不可用，请稍后重试', 'wait']

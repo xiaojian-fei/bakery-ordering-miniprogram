@@ -21,6 +21,30 @@ class MemoryRepository {
           if (!draft[table]) draft[table] = {};
           Object.defineProperty(draft[table], id, { value: structuredClone(record), enumerable: true,
             configurable: true, writable: true });
+        },
+        async query(table, { filters = [], orderBy = [{ field: '_id', direction: 'asc' }], after = null, limit = 20 } = {}) {
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('INVALID_QUERY_LIMIT');
+          const compare = (left, right) => {
+            for (const { field, direction } of orderBy) {
+              if (left[field] === right[field]) continue;
+              return (left[field] < right[field] ? -1 : 1) * (direction === 'desc' ? -1 : 1);
+            }
+            return 0;
+          };
+          const match = (row, { field, op = 'eq', value }) => {
+            if (op === 'eq') return row[field] === value;
+            if (op === 'ne') return row[field] !== value;
+            if (op === 'gte') return row[field] >= value;
+            if (op === 'lt') return row[field] < value;
+            if (op === 'lte') return row[field] <= value;
+            if (op === 'in') return Array.isArray(value) && value.includes(row[field]);
+            if (op === 'contains') return typeof row[field] === 'string' && row[field].toLowerCase().includes(value.toLowerCase());
+            throw new Error('INVALID_QUERY_OPERATOR');
+          };
+          return Object.entries(Object.hasOwn(draft, table) ? draft[table] : {})
+            .map(([key, row]) => ({ ...structuredClone(row), _id: key }))
+            .filter(row => filters.every(filter => match(row, filter)) && (!after || compare(row, after) > 0))
+            .sort(compare).slice(0, limit);
         }
       };
       const result = await work(tx);

@@ -43,6 +43,9 @@ function createTradeClient({ send, clock = Date.now } = {}) {
 
   const call = async (action, input, fields, options) => request(action, pickData(input, fields), options);
   const orders = Object.freeze({
+    list: (input = {}) => call('orders.list', input, ['manage', 'status', 'cursor', 'limit']),
+    timeline: input => call('orders.timeline', input, ['orderId', 'manage', 'cursor', 'limit']),
+    pickupCode: orderId => call('orders.pickupCode', { orderId }, ['orderId']),
     quote: input => call('orders.quote', input, ['items', 'deliveryType', 'addressId']),
     create: input => call('orders.create', input,
       ['requestId', 'items', 'deliveryType', 'addressId', 'expectedTotalCents', 'remark'], { write: true }),
@@ -82,6 +85,40 @@ function createTradeClient({ send, clock = Date.now } = {}) {
   return Object.freeze({
     identity: Object.freeze({ me: () => request('identity.me', {}) }),
     staff, orders,
+    shop: Object.freeze({
+      get: () => request('shop.get', {}),
+      save: input => call('shop.save', input, ['requestId', 'expectedVersion', 'name', 'phone', 'wechat',
+        'address', 'deliveryNote', 'shipping', 'banners'], { write: true, employee: true })
+    }),
+    notifications: Object.freeze({ list: (input = {}) => call('notifications.list', input, ['manage', 'limit', 'cursor']) }),
+    catalog: Object.freeze({
+      list: (input = {}) => call('catalog.list', input, ['category', 'keyword', 'includeUnavailable', 'cursor', 'limit']),
+      get: (productId, options = {}) => call('catalog.get', { ...options, productId }, ['productId', 'includeUnavailable']),
+      save: input => call('catalog.save', input, ['productId', 'requestId', 'expectedVersion', 'name', 'priceCents',
+        'desc', 'category', 'image', 'isOnSale', 'isFeatured', 'onHand', 'reserved', 'inventoryVersion'], { write: true, employee: true })
+    }),
+    addresses: Object.freeze({
+      list: (input = {}) => call('addresses.list', input, ['cursor', 'limit']),
+      save: input => call('addresses.save', input, ['addressId', 'requestId', 'expectedVersion', 'name', 'phone',
+        'province', 'city', 'district', 'detail', 'makeDefault'], { write: true }),
+      remove: input => call('addresses.remove', input, ['addressId', 'requestId', 'expectedVersion'], { write: true })
+    }),
+    cart: Object.freeze({
+      get: () => request('cart.get', {}),
+      setLine: input => call('cart.setLine', input, ['productId', 'quantity', 'requestId', 'expectedVersion'], { write: true }),
+      clear: input => call('cart.clear', input, ['requestId', 'expectedVersion'], { write: true })
+    }),
+    fulfillment: Object.freeze(Object.fromEntries(['accept', 'ship', 'readyForPickup', 'complete'].map(action =>
+      [action, input => call('fulfillment.' + action, input, ['orderId', 'requestId', 'expectedVersion',
+        'carrier', 'trackingNo', 'pickupCode'], { write: true, employee: true })]))),
+    afterSales: Object.freeze({
+      apply: input => call('afterSales.apply', input, ['orderId', 'requestId', 'reason'], { write: true }),
+      review: input => call('afterSales.review', input, ['afterSaleId', 'requestId', 'expectedVersion', 'decision', 'reason'],
+        { write: true, employee: true }),
+      get: (afterSaleId, options = {}) => call('afterSales.get', { ...options, afterSaleId }, ['afterSaleId', 'manage']),
+      list: (input = {}) => call('afterSales.list', input, ['manage', 'status', 'cursor', 'limit'])
+    }),
+    statistics: Object.freeze({ summary: input => call('statistics.summary', input, ['startAt', 'endAt'], { employee: true }) }),
     inventory: Object.freeze({ adjust: input => call('inventory.adjust', input,
       ['requestId', 'productId', 'onHand', 'expectedVersion', 'reason'], { write: true, employee: true }) }),
     refunds: Object.freeze({ executeApproved: input => call('refunds.executeApproved', input,

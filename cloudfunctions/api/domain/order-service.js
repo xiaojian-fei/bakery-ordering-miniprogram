@@ -78,14 +78,16 @@ class OrderService {
     if (deliveryType === 'delivery') {
       const address = await tx.get('addresses', addressId);
       requireOwner(actor, address);
+      ensure(!address.deleted, 'INVALID_ADDRESS', '地址已删除，请重新选择');
       for (const field of ['name', 'phone', 'province', 'city', 'district', 'detail']) {
         ensure(typeof address[field] === 'string' && address[field].trim(), 'INVALID_ADDRESS', '地址信息不完整');
       }
       addressSnapshot = Object.fromEntries(['name', 'phone', 'province', 'city', 'district', 'detail']
         .map(field => [field, address[field]]));
     }
+    const configured = await tx.get('shop_config', 'shipping_rules');
     return { products, addressSnapshot,
-      quote: calculateQuote(items, products, deliveryType, addressSnapshot, this.shipping) };
+      quote: calculateQuote(items, products, deliveryType, addressSnapshot, configured?.rules || this.shipping) };
   }
 
   async quote(actor, input) {

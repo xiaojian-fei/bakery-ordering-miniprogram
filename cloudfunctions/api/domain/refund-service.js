@@ -4,7 +4,7 @@ const { ensure } = require('./errors');
 const { requireRole } = require('./auth');
 const { validId, requireMoney } = require('./pricing');
 const { STATUS } = require('./order-state');
-const { writeOrderEvent, writeInventoryMovement } = require('./transaction-log');
+const { writeOrderEvent, writeInventoryMovement, writeAfterSaleEvent } = require('./transaction-log');
 const { validateInventory, bumpInventoryVersion } = require('./inventory');
 
 // 整单模拟退款的原子操作。售后申请、审核页面和审核流程由C负责。
@@ -44,7 +44,9 @@ class RefundService {
       afterSale.status = 'REFUNDED';
       afterSale.refundId = refund._id;
       afterSale.refundedAt = refund.createdAt;
+      afterSale.version = (afterSale.version ?? 0) + 1;
       await tx.set('after_sales', afterSaleId, afterSale);
+      await writeAfterSaleEvent(tx, afterSale, actor, 'REFUNDED', refund.createdAt, { amountCents: refund.amountCents });
       return refund;
     });
   }
@@ -74,6 +76,10 @@ class RefundService {
       }
       const order = await tx.get('orders', input.orderId);
       ensure(order, 'ORDER_NOT_FOUND', '订单不存在');
+      const link = await tx.get('after_sale_links', order._id);
+      const activeAfterSale = link ? await tx.get('after_sales', link.afterSaleId) : null;
+      ensure(!['REQUESTED', 'APPROVED'].includes(activeAfterSale?.status),
+        'AFTER_SALE_PENDING', '订单已有处理中售后，请通过售后流程处理');
       ensure(!await tx.get('refunds', 'refund_' + order._id), 'ALREADY_REFUNDED', '订单已经完成整单退款');
       ensure(order.version === input.expectedVersion, 'VERSION_CONFLICT', '订单已更新，请刷新后确认');
       ensure(order.status === STATUS.PENDING_ACCEPTANCE && order.paymentStatus === 'PAID',
