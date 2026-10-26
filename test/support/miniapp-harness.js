@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '../..');
 function miniappHarness(runtime, { legacyCloud = false } = {}) {
   const events = [], pages = [], components = [], cache = new Map();
   let app, cloudReads = 0;
-  const wx = Object.fromEntries(['showToast', 'showModal', 'navigateTo', 'switchTab', 'makePhoneCall', 'setClipboardData']
+  const wx = Object.fromEntries(['showToast', 'showModal', 'navigateTo', 'navigateBack', 'switchTab', 'makePhoneCall', 'setClipboardData']
     .map(name => [name, options => { events.push({ name, options }); }]));
   Object.defineProperty(wx, 'cloud', { get() {
     cloudReads += 1;

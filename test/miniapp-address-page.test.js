@@ -42,7 +42,8 @@ test('原地址列表：仅显示本人未删除地址与默认标记，不访�
   assert.equal(page.data.addresses[0].isDefault, true);
   assert.equal(page.data.addresses[0].phone, '00000000000');
   assert.equal(base.cloudReads(), 0);
-  assert.deepEqual(base.requests, ['identity.me', 'addresses.list']);
+  assert.equal(base.requests.filter(action => action === 'addresses.list').length, 1);
+  assert.ok(base.requests.every(action => ['identity.me', 'addresses.list'].includes(action)));
 });
 
 test('原地址列表：有界分页追加，默认指针跨页改变后不会出现两个默认标记', async () => {
@@ -96,14 +97,14 @@ test('原地址列表：刷新后旧响应不覆盖结果，隐藏后响应不�
   assert.equal(page.updates.length, updates);
 });
 
-test('原地址列表：只读入口不发送写操作或选择事件，购物车可跳转查看', async () => {
+test('原地址列表：导航不直接发送写操作或选择事件，购物车可跳转查看', async () => {
   const base = fixture(), cart = base.loadPage('pages/cart/cart'); cart.openAddresses();
   const page = base.loadPage('pages/address/address'); await page.onShow();
   page.addAddress(); page.editAddress(); page.deleteAddress(); page.selectAddress();
   assert.ok(base.events.some(event => event.name === 'navigateTo' && event.options.url === '/pages/address/address'));
   assert.ok(base.requests.every(action => ['identity.me', 'addresses.list'].includes(action)));
-  assert.equal(base.events.filter(event => event.name === 'navigateTo').length, 1);
-  assert.equal(base.runtime.isRouteAvailable('/pages/add-address/add-address'), false);
+  assert.equal(base.events.filter(event => event.name === 'navigateTo').length, 2);
+  assert.equal(base.runtime.isRouteAvailable('/pages/add-address/add-address'), true);
 });
 
 test('原地址列表：旧模式保持原模块与编辑入口，新模式不混用旧数据', () => {

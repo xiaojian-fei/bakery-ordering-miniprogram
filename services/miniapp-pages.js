@@ -189,12 +189,20 @@ function createCartPage(dependencies) {
   };
 }
 function createAddressPage({ runtime, wx }) {
-  const editingUnavailable = () => wx.showToast({ title: '地址新增、编辑和删除尚未接入', icon: 'none' });
   return {
     data: { unifiedMode: true, addresses: [], cursor: null, loading: false, loadingMore: false, error: '',
-      runtimeNotice: '当前仅支持查看本人地址；新增、编辑、删除及结算选择待接入。' },
+      addressWritePending: false, runtimeNotice: '可查看、新增和编辑本人地址；删除及结算选择待接入。' },
     onLoad() {},
-    onShow() { this._active = true; return this.refreshAddresses(); },
+    async onShow() {
+      this._active = true;
+      await this.refreshAddresses();
+      try {
+        const pending = await runtime.addressEditor.getPending();
+        if (this._active) this.setData({ addressWritePending: Boolean(pending) });
+      } catch (error) {
+        if (this._active) this.setData({ error: errorText(error), addresses: [], cursor: null });
+      }
+    },
     onHide() { deactivate(this); }, onUnload() { deactivate(this); },
     refreshAddresses() { return this.loadAddresses(false); },
     loadMore() { return this.loadAddresses(true); },
@@ -222,7 +230,12 @@ function createAddressPage({ runtime, wx }) {
       }
     },
     selectAddress() { wx.showToast({ title: '地址选择将在结算页接入后开放', icon: 'none' }); },
-    addAddress: editingUnavailable, editAddress: editingUnavailable, deleteAddress: editingUnavailable
+    addAddress() { wx.navigateTo({ url: '/pages/add-address/add-address' }); },
+    editAddress(event) {
+      const id = event?.currentTarget?.dataset?.id;
+      if (typeof id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(id)) wx.navigateTo({ url: '/pages/add-address/add-address?id=' + encodeURIComponent(id) });
+    },
+    deleteAddress() { wx.showToast({ title: '地址删除尚未接入', icon: 'none' }); }
   };
 }
 module.exports = { createCatalogPage, createDetailPage, createCartPage, createAddressPage };

@@ -10,6 +10,17 @@ const addressView = (address, defaultId) => ({ _id: address._id, name: address.n
 class AddressService {
   constructor(repository, { clock = Date.now } = {}) { this.repository = repository; this.clock = clock; }
 
+  async get(actor, addressId) {
+    requireCustomer(actor); id(addressId);
+    return this.repository.transaction(async tx => {
+      const address = await tx.get('addresses', addressId);
+      ensure(address && !address.deleted, 'ADDRESS_NOT_FOUND', '地址不存在或已删除');
+      requireOwner(actor, address);
+      const user = await tx.get('users', actor.openid);
+      return addressView(address, user?.defaultAddressId);
+    });
+  }
+
   async list(actor, input = {}) {
     requireCustomer(actor);
     return this.repository.transaction(async tx => {

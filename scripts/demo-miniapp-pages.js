@@ -19,16 +19,22 @@ async function main() {
   await cart.changeQuantity({ currentTarget: { dataset: { id: 'bread', op: 'plus' } } });
   assert.equal(cart.data.cartItems[0].quantity, 2);
   assert.equal(cart.data.totalPrice, '25.00'); assert.equal(app.globalData.cartCount, 2);
-  // 显式准备虚构内存地址；只读地址页本身不执行save/remove。
-  await client.addresses.save({ addressId: 'demo-home', requestId: 'seed-' + randomUUID(), expectedVersion: 0,
-    name: '演示顾客', phone: '00000000000', province: '测试省', city: '测试市', district: '测试区',
-    detail: '虚构演示地址', makeDefault: true });
+  const form = loadPage('pages/add-address/add-address'); form.onLoad({}); await form.onShow();
+  const change = value => ({ detail: { value } });
+  form.onNameInput(change('演示顾客')); form.onPhoneInput(change('00000000000'));
+  form.onRegionChange(change(['测试省', '测试市', '测试区'])); form.onDetailInput(change('虚构演示地址'));
+  form.onDefaultChange(change(true)); await form.submit(); assert.equal(form.data.saved, true);
+  // 新页面实例读取同一内存服务，验证编辑入口，而不是直接调用服务修改地址。
+  const editing = miniappHarness(runtime), edit = editing.loadPage('pages/add-address/add-address');
+  edit.onLoad({ id: form.data.id }); await edit.onShow(); edit.onDetailInput(change('虚构演示地址（已修改）'));
+  await edit.submit(); assert.equal(edit.data.version, 2);
   cart.openAddresses();
   const addresses = loadPage('pages/address/address'); await addresses.onShow();
   assert.equal(addresses.data.addresses.length, 1); assert.equal(addresses.data.addresses[0].isDefault, true);
-  assert.equal(cloudReads(), 0);
+  assert.equal(addresses.data.addresses[0].detail, '虚构演示地址（已修改）');
+  assert.equal(cloudReads() + editing.cloudReads(), 0);
   console.log('原App/Page入口本地执行：商品2种 → 详情加购 → 购物车2件，估算25.00元。');
-  console.log('购物车 → 只读地址列表：本人虚构地址1条，默认标记正确。');
+  console.log('新增默认地址 → 编辑至版本2 → 地址列表：本人虚构地址1条，内容及默认标记正确。');
   console.log('wx.cloud访问0次；未迁移页面已隔离。虚构数据、内存服务，未执行微信编译或WXML渲染。');
 }
 main().catch(() => { console.error('原页面本地贯通失败，请运行npm test查看具体用例。'); process.exitCode = 1; });

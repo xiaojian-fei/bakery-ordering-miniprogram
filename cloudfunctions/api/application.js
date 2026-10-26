@@ -41,6 +41,7 @@ function createApplication({ repository, resolveIdentity, clock, shipping } = {}
     ['catalog.get', (actor, data) => catalog.get(actor, data.productId, data)],
     ['catalog.save', (actor, data) => catalog.save(actor, data)],
     ['addresses.list', (actor, data) => addresses.list(actor, data)],
+    ['addresses.get', (actor, data) => addresses.get(actor, data.addressId)],
     ['addresses.save', (actor, data) => addresses.save(actor, data)],
     ['addresses.remove', (actor, data) => addresses.remove(actor, data)],
     ['cart.get', actor => cart.get(actor)],

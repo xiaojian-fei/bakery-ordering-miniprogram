@@ -1,18 +1,25 @@
 <!-- pages/add-address/add-address.wxml -->
 <view class="container">
+  <view wx:if="{{unifiedMode && loading}}">加载中…</view>
+  <view wx:if="{{unifiedMode && error}}" class="runtime-error">{{error}}</view>
+  <view wx:if="{{unifiedMode && pendingNeedsRestore}}" class="runtime-notice">上次保存结果待确认，请先恢复原表单。
+    <button bindtap="restorePending" disabled="{{saving || loading}}">恢复上次保存表单</button>
+  </view>
+  <button wx:if="{{unifiedMode && reloadRequired && !writePending}}" bindtap="loadAddress" disabled="{{saving || loading}}">重新加载服务器地址（将覆盖表单）</button>
+  <button wx:if="{{unifiedMode && !formReady && !writePending && !reloadRequired && !saved && !loading}}" bindtap="loadAddress">重试加载</button>
   <view class="form-item">
     <text>联系人</text>
-    <input placeholder="请输入姓名" bindinput="onNameInput" value="{{name}}" />
+    <input maxlength="{{unifiedMode ? 80 : 140}}" disabled="{{unifiedMode && (!formReady || loading || saving || writePending || reloadRequired || saved)}}" placeholder="请输入姓名" bindinput="onNameInput" value="{{name}}" />
   </view>
   <view class="form-item">
     <text>电话</text>
-    <input type="number" placeholder="请输入手机号" bindinput="onPhoneInput" value="{{phone}}" />
+    <input maxlength="{{unifiedMode ? 40 : 140}}" disabled="{{unifiedMode && (!formReady || loading || saving || writePending || reloadRequired || saved)}}" type="number" placeholder="请输入手机号" bindinput="onPhoneInput" value="{{phone}}" />
   </view>
   
   <!-- 所在地区选择器，未选择时显示"请选择" -->
   <view class="form-item">
     <text>所在地区</text>
-    <picker mode="region" bindchange="onRegionChange" value="{{region}}">
+    <picker disabled="{{unifiedMode && (!formReady || loading || saving || writePending || reloadRequired || saved)}}" mode="region" bindchange="onRegionChange" value="{{region}}">
       <view class="picker {{region[0] ? '' : 'placeholder'}}">
         {{region[0] ? region[0] + ' ' + region[1] + ' ' + region[2] : '请选择省市区'}}
       </view>
@@ -21,13 +28,16 @@
   
   <view class="form-item">
     <text>详细地址</text>
-    <textarea placeholder="请输入街道、门牌号等详细信息" bindinput="onDetailInput" value="{{detail}}" />
+    <textarea maxlength="{{unifiedMode ? 300 : 140}}" disabled="{{unifiedMode && (!formReady || loading || saving || writePending || reloadRequired || saved)}}" placeholder="请输入街道、门牌号等详细信息" bindinput="onDetailInput" value="{{detail}}" />
   </view>
   
   <view class="form-item">
     <text>设为默认地址</text>
-    <switch checked="{{isDefault}}" bindchange="onDefaultChange" />
+    <switch disabled="{{unifiedMode && (!formReady || loading || saving || writePending || reloadRequired || saved)}}" checked="{{isDefault}}" bindchange="onDefaultChange" />
   </view>
   
-  <button type="primary" bindtap="submit">保存地址</button>
+  <button wx:if="{{!unifiedMode || (!writePending && !saved)}}" type="primary" bindtap="submit" loading="{{saving}}" disabled="{{unifiedMode && (!formReady || loading || saving || reloadRequired)}}">保存地址</button>
+  <button wx:if="{{unifiedMode && writePending && formReady && !pendingNeedsRestore}}" bindtap="retrySave" disabled="{{saving || loading}}" loading="{{saving}}">重试原保存</button>
+  <view wx:if="{{unifiedMode && saved}}" class="runtime-notice">地址已保存</view>
+  <button wx:if="{{unifiedMode && saved}}" bindtap="backToAddresses">返回地址列表</button>
 </view>

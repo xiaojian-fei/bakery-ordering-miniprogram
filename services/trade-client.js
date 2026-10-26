@@ -98,6 +98,7 @@ function createTradeClient({ send, clock = Date.now } = {}) {
         'desc', 'category', 'image', 'isOnSale', 'isFeatured', 'onHand', 'reserved', 'inventoryVersion'], { write: true, employee: true })
     }),
     addresses: Object.freeze({
+      get: addressId => call('addresses.get', { addressId }, ['addressId']),
       list: (input = {}) => call('addresses.list', input, ['cursor', 'limit']),
       save: input => call('addresses.save', input, ['addressId', 'requestId', 'expectedVersion', 'name', 'phone',
         'province', 'city', 'district', 'detail', 'makeDefault'], { write: true }),
