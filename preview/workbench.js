@@ -5,7 +5,7 @@
   const money = cents => '¥' + (cents / 100).toFixed(2);
   const statuses = { PENDING_PAYMENT: '待支付', PENDING_ACCEPTANCE: '待接单', ACCEPTED: '已接单', SHIPPING: '配送中', READY_FOR_PICKUP: '待自取', COMPLETED: '已完成', CANCELLED: '已取消', EXPIRED: '已超时', REQUESTED: '待审核', APPROVED: '已批准待退款', REJECTED: '已拒绝', REFUNDED: '已退款', PENDING: '待处理', PROCESSING: '处理中', DELIVERED: '已处理', FAILED: '处理失败' };
   const actionNames = { create: '订单创建', pay: '模拟支付成功', cancel: '顾客取消', expire: '支付超时', accept: '店员接单', ship: '登记发货', readyForPickup: '准备自取', complete: '履约完成', refund: '模拟退款', merchantReject: '店主拒单', paymentFailed: '模拟支付失败' };
-  let serial = 0, identity = 'buyer', tab = 'catalog', client, state = {}, attempt = null, switching = false, busy = 0, renderEpoch = 0;
+  let serial = 0, identity = 'buyer', tab = 'catalog', client, recovery, state = {}, attempt = null, switching = false, busy = 0, renderEpoch = 0;
   const rid = prefix => prefix + '-' + Date.now() + '-' + (++serial);
   const button = (label, action, id = '', css = '') => `<button class="${css}" data-action="${action}" data-id="${esc(id)}">${label}</button>`;
   const field = (name, label, value = '', type = 'text') => `<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" required></label>`;
@@ -35,6 +35,12 @@
       await post('/demo/identity', { identity: next }); identity = next;
       client = window.TradeClient.createTradeClient({ send: envelope => post('/api', envelope) });
       if (managed()) await client.staff.login('LOCAL_DEMO_ONLY');
+      const info = await (await fetch('/demo/state')).json(), actor = await client.identity.me();
+      recovery = window.CheckoutRecovery.createCheckoutRecovery({ client, subjectId: actor.openid,
+        namespace: 'bakery.demo.' + info.instanceId, storage: {
+          get: key => { const raw = localStorage.getItem(key); if (!raw) return null; try { return JSON.parse(raw); } catch (_) { return { schemaVersion: -1 }; } },
+          set: (key, value) => localStorage.setItem(key, JSON.stringify(value)), remove: key => localStorage.removeItem(key)
+        } });
       state = {}; tab = 'catalog'; await render();
     } finally { switching = false; updateBusy(); }
   }
@@ -44,7 +50,7 @@
     $('#navigation').innerHTML = tabs.map(([key, label]) => `<button data-tab="${key}" class="${key === tab ? 'active' : ''}">${label}</button>`).join('');
   }
   async function render() {
-    const ticket = ++renderEpoch, activeTab = tab, activeIdentity = identity, activeClient = client, view = {};
+    const ticket = ++renderEpoch, activeTab = tab, activeIdentity = identity, activeClient = client, activeRecovery = recovery, view = {};
     navigation();
     let html = '';
     if (tab === 'catalog') {
@@ -53,8 +59,11 @@
       html += view.products.map(p => `<article class="card"><span class="pill">${esc(p.category || '商品')}</span><h3 style="margin-top:14px">${esc(p.name)}</h3><p class="muted">${esc(p.desc || '暂无描述')}</p><div class="price">${money(p.priceCents)}</div><p class="muted">可售 ${p.available} 件 · ${p.isOnSale ? '上架中' : '已下架'}</p><div class="row">${button('加入购物车', 'add-cart', p._id, 'primary')}${identity === 'owner' ? button('编辑', 'edit-product', p._id) + button('盘点库存', 'stock', p._id) : ''}</div></article>`).join('') + '</div>';
     } else if (tab === 'cart') {
       view.cart = await activeClient.cart.get(); view.addresses = (await activeClient.addresses.list({ limit: 50 })).items;
+      try { view.recoveryDraft = await activeRecovery.inspect(); } catch (error) { view.recoveryProblem = error.message; }
       html = '<h2>购物车</h2>' + (view.cart.items.map(item => `<section class="card"><h3>${esc(item.name)}</h3><div class="row"><span>${money(item.unitPriceCents || 0)} × ${item.quantity}</span>${button('−', 'cart-minus', item.productId)}${button('+', 'cart-plus', item.productId)}${button('移除', 'cart-remove', item.productId)}</div><p class="muted">${item.issue ? '当前不可结算：请检查上架状态或数量' : '可售 ' + item.available + ' 件'}</p></section>`).join('') || '<div class="card empty">购物车为空</div>');
-      if (view.cart.items.length) html += `<section class="card"><p>商品估算：<strong>${money(view.cart.estimatedSubtotalCents)}</strong></p><form id="quote-form" class="stack"><label>取货方式<select name="deliveryType"><option value="pickup">到店自取</option><option value="delivery">配送</option></select></label><label>配送地址<select name="addressId"><option value="">请选择地址</option>${view.addresses.map(a => `<option value="${esc(a._id)}" ${a.isDefault ? 'selected' : ''}>${esc(a.name + ' · ' + a.province + a.detail)}</option>`).join('')}</select></label><label>备注<input name="remark" maxlength="200"></label><button class="primary">核对金额</button></form><div id="quote-result"></div></section>`;
+      if (view.recoveryDraft || view.recoveryProblem) html += `<section class="card"><h3>上次结算</h3><p>${view.recoveryProblem ? esc(view.recoveryProblem) : '已保留原请求与报价 ' + money(view.recoveryDraft.totalCents)}</p><div class="row">${view.recoveryDraft ? button('恢复上次结算', 'restore-checkout', '', 'primary') : ''}${button('清理本地草稿', 'discard-checkout')}</div><p class="muted">清理草稿不会取消服务器上的订单。</p></section>`;
+      if (view.cart.items.length) html += `<section class="card"><p>商品估算：<strong>${money(view.cart.estimatedSubtotalCents)}</strong></p><form id="quote-form" class="stack"><label>取货方式<select name="deliveryType"><option value="pickup">到店自取</option><option value="delivery">配送</option></select></label><label>配送地址<select name="addressId"><option value="">请选择地址</option>${view.addresses.map(a => `<option value="${esc(a._id)}" ${a.isDefault ? 'selected' : ''}>${esc(a.name + ' · ' + a.province + a.detail)}</option>`).join('')}</select></label><label>备注<input name="remark" maxlength="200"></label><button class="primary">核对金额</button></form></section>`;
+      html += '<section id="quote-result"></section>';
     } else if (tab === 'addresses') {
       view.addresses = (await activeClient.addresses.list({ limit: 50 })).items;
       html = '<div class="toolbar"><h2>收货地址</h2>' + button('新增地址', 'new-address', '', 'primary') + '</div>';
@@ -105,6 +114,9 @@
     details(`<h2>${product._id ? '编辑' : '新增'}商品</h2><form id="product-form" class="grid">${field('name', '商品名称', product.name || '')}${field('price', '单价（元）', ((product.priceCents || 1000) / 100).toFixed(2))}${field('category', '分类', product.category || '司康')}${field('desc', '描述', product.desc || '演示商品')}<label class="wide row"><input name="isOnSale" type="checkbox" ${product.isOnSale !== false ? 'checked' : ''}>上架</label><p class="muted wide">新增商品库存为0，请保存后单独盘点库存。</p><button class="primary wide">保存商品</button></form>`);
   }
   const cents = value => { if (!/^\d+(?:\.\d{1,2})?$/.test(value)) throw new Error('金额最多保留两位小数'); const [whole, fraction = ''] = value.split('.'); return Number(whole) * 100 + Number(fraction.padEnd(2, '0')); };
+  function showQuote() {
+    $('#quote-result').innerHTML = `<div class="card"><p>${attempt.restored ? '已恢复原请求和报价：' : '服务端确认：'}商品 ${money(attempt.quote.subtotalCents)} ＋ 运费 ${money(attempt.quote.shippingCents)} ＝ <strong>${money(attempt.quote.totalCents)}</strong></p><div class="row">${button('确认提交', 'submit-checkout', '', 'primary')}${button('按原请求重试', 'retry-checkout')}</div></div>`;
+  }
   async function action(name, id) {
     $('#message').style.display = 'none';
     const order = state.orders?.find(item => item._id === id), sale = state.afterSales?.find(item => item._id === id);
@@ -116,7 +128,9 @@
     if (name === 'new-product') return productForm();
     if (name === 'edit-product') return productForm(await client.catalog.get(id, { includeUnavailable: true }));
     if (name === 'stock') { const product = await client.catalog.get(id, { includeUnavailable: true }); const value = await ask('盘点后的实物库存（不低于已预留数量）', String(product.onHand)); if (value === null) return; await client.inventory.adjust({ productId: id, onHand: Number(value), expectedVersion: product.inventoryVersion, reason: '本地演示盘点', requestId: rid('stock') }); }
-    if (name === 'submit-checkout' || name === 'retry-checkout') { await attempt.submit(); let note = ''; try { await client.cart.clear({ expectedVersion: state.cart.version, requestId: rid('clear') }); } catch (_) { note = '；购物车有更新，请手动核对'; } attempt = null; tab = 'orders'; message('订单已创建，请继续模拟支付' + note); }
+    if (name === 'restore-checkout') { attempt = await recovery.restore(); if (!attempt) { message('没有可恢复的结算'); return render(); } if (state.recoveryDraft.state === 'CONFIRMED') { await attempt.submit(); tab = 'orders'; message('已找回原订单，请核对最新状态'); return render(); } showQuote(); message('已恢复原请求；请核对金额后提交或按原请求重试'); return; }
+    if (name === 'discard-checkout') { let acknowledgeUncertain = false, problem = false, latest; try { latest = await recovery.inspect(); } catch (_) { problem = true; } if (problem || ['SUBMITTING', 'UNCERTAIN'].includes(latest?.state)) { const answer = await ask('清理不会取消订单，已核对订单后请输入“已核对”'); if (answer !== '已核对') return; acknowledgeUncertain = true; } await recovery.discard({ acknowledgeUncertain }); attempt = null; message('已清理本地草稿，未取消服务器订单'); }
+    if (name === 'submit-checkout' || name === 'retry-checkout') { const restored = attempt.restored, order = await attempt.submit(); let note = ''; if (!restored && !['EXPIRED', 'CANCELLED'].includes(order.status)) { try { await client.cart.clear({ expectedVersion: state.cart.version, requestId: rid('clear') }); } catch (_) { note = '；购物车有更新，请手动核对'; } } else note = '；购物车已保留，请核对'; const warning = attempt.getRecoveryStatus().storageWarning; attempt = null; tab = 'orders'; message((restored ? '已恢复原订单' : '订单已创建，请继续模拟支付') + note + (warning ? '；本地确认记录未保存，下次仍可按原请求找回' : '')); }
     if (name === 'pay') await client.orders.pay(id, { expectedVersion: order.version });
     if (name === 'cancel') await client.orders.cancel(id, { expectedVersion: order.version });
     if (name === 'timeline') { const timeline = await client.orders.timeline({ orderId: id, manage: managed(), limit: 50 }); return details('<h2>订单时间线</h2><ol>' + timeline.items.map(item => `<li>${esc(actionNames[item.action] || '订单更新')}<br><span class="muted">${esc(new Date(item.createdAt).toLocaleString())}</span></li>`).join('') + '</ol>'); }
@@ -141,7 +155,7 @@
     const submit = form.querySelector('button'); submit.disabled = true; updateBusy(1);
     try {
       if (form.id === 'prompt-form') { const resolve = state.promptResolve; state.promptResolve = null; $('#details').close(); resolve(data.value); return; }
-      if (form.id === 'quote-form') { attempt = await client.prepareCheckout({ requestId: rid('checkout'), deliveryType: data.deliveryType, addressId: data.addressId || undefined, remark: data.remark, items: state.cart.items.map(({ productId, quantity }) => ({ productId, quantity })) }); $('#quote-result').innerHTML = `<div class="line"><p>服务端确认：商品 ${money(attempt.quote.subtotalCents)} ＋ 运费 ${money(attempt.quote.shippingCents)} ＝ <strong>${money(attempt.quote.totalCents)}</strong></p><div class="row">${button('确认提交', 'submit-checkout', '', 'primary')}${button('按原请求重试', 'retry-checkout')}</div></div>`; return; }
+      if (form.id === 'quote-form') { attempt = await recovery.prepare({ requestId: rid('checkout'), deliveryType: data.deliveryType, addressId: data.addressId || undefined, remark: data.remark, items: state.cart.items.map(({ productId, quantity }) => ({ productId, quantity })) }); showQuote(); return; }
       if (form.id === 'address-form') { await client.addresses.save({ ...data, addressId: state.editAddress._id || rid('addr'), expectedVersion: state.editAddress.version || 0, requestId: rid('address'), makeDefault: data.makeDefault === 'on' }); $('#details').close(); }
       if (form.id === 'product-form') { await client.catalog.save({ ...data, productId: state.editProduct._id || rid('product'), expectedVersion: state.editProduct.catalogVersion || 0, requestId: rid('product-save'), priceCents: cents(data.price), isOnSale: data.isOnSale === 'on', image: state.editProduct.image || '', isFeatured: state.editProduct.isFeatured || false }); $('#details').close(); }
       if (form.id === 'shop-form') { const shipping = { ...state.shop.shipping }; for (const key of ['northernFeeCents', 'otherFeeCents', 'northernThresholdCents', 'otherThresholdCents']) shipping[key] = cents(data[key]); await client.shop.save({ ...data, shipping, expectedVersion: state.shop.version, requestId: rid('shop'), banners: state.shop.banners }); message('店铺配置已保存'); }

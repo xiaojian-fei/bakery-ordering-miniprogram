@@ -29,7 +29,7 @@ test('本地工作台：仅本机HTTP，界面/客户端包可加载，未暴露
     assert.doesNotThrow(() => new vm.Script(source));
   }
   const state = await (await fetch(base + '/demo/state')).json();
-  assert.deepEqual(Object.keys(state).sort(), ['identity', 'mode', 'now']);
+  assert.deepEqual(Object.keys(state).sort(), ['identity', 'instanceId', 'mode', 'now']);
   assert.equal(state.mode, 'LOCAL_DEMO');
 });
 

@@ -35,6 +35,11 @@ const hints = Object.freeze({
   AFTER_SALE_PENDING: ['售后已批准，等待退款处理', 'refresh'],
   INVALID_PICKUP_CODE: ['自取核销码不正确或已使用', 'edit'],
   REPORT_TOO_LARGE: ['数据量过大，请缩小统计日期范围', 'edit'],
+  INVALID_CHECKOUT_DRAFT: ['结算草稿已损坏，请核对订单后重新准备', 'review'],
+  CHECKOUT_STORAGE_ERROR: ['结算草稿无法保存，请检查本地存储', 'review'],
+  CHECKOUT_RECOVERY_REQUIRED: ['有结果未确认的结算，请先找回或核对原订单', 'check_then_retry'],
+  CHECKOUT_IDENTITY_MISMATCH: ['结算草稿与当前身份不一致，请切回原账号', 'login'],
+  STALE_CHECKOUT_DRAFT: ['这份结算已被新的草稿替换，请重新查看', 'refresh'],
   NETWORK_ERROR: ['连接中断，操作结果可能尚未确认，请先核对再重试', 'check_then_retry'],
   PROTOCOL_ERROR: ['服务响应异常，请先核对操作结果', 'check_then_retry'],
   INTERNAL_ERROR: ['服务暂不可用，请稍后重试', 'wait']

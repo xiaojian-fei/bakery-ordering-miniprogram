@@ -9,15 +9,16 @@ const { OrderExpiryJob } = require('../cloudfunctions/api/jobs/order-expiry-job'
 
 async function createWorkbench() {
   const demo = await createLocalDemo();
+  const instanceId = randomBytes(8).toString('hex');
   const root = path.resolve(__dirname, '..');
   const assets = new Map([
     ['/', { type: 'text/html; charset=utf-8', content: await fs.readFile(path.join(root, 'preview/workbench.html'), 'utf8') }],
     ['/app.js', { type: 'text/javascript; charset=utf-8', content: await fs.readFile(path.join(root, 'preview/workbench.js'), 'utf8') }]
   ]);
-  const modules = await Promise.all(['trade-errors', 'checkout-attempt', 'trade-client'].map(async name =>
+  const modules = await Promise.all(['trade-errors', 'checkout-attempt', 'trade-client', 'checkout-recovery'].map(async name =>
     JSON.stringify('./' + name) + ': function(module, require) {\n' + await fs.readFile(path.join(root, 'services', name + '.js'), 'utf8') + '\n}'));
   const bundle = '(function(){const definitions={' + modules.join(',')
-    + '};const cache={};function require(id){if(!cache[id]){const module={exports:{}};cache[id]=module;definitions[id](module,require);}return cache[id].exports;}window.TradeClient=require("./trade-client");})();';
+    + '};const cache={};function require(id){if(!cache[id]){const module={exports:{}};cache[id]=module;definitions[id](module,require);}return cache[id].exports;}window.TradeClient=require("./trade-client");window.CheckoutRecovery=require("./checkout-recovery");})();';
   assets.set('/client.js', { type: 'text/javascript; charset=utf-8', content: bundle });
   const sessions = new Map();
   const notificationJob = new NotificationJob({ repository: demo.repository, clock: demo.clock,
@@ -44,7 +45,7 @@ async function createWorkbench() {
       if (req.method === 'GET' && assets.has(req.url)) {
         const asset = assets.get(req.url); res.writeHead(200, { 'Content-Type': asset.type }); res.end(asset.content); return;
       }
-      if (req.method === 'GET' && req.url === '/demo/state') return json(200, { identity: session.identity, now: demo.clock(), mode: 'LOCAL_DEMO' });
+      if (req.method === 'GET' && req.url === '/demo/state') return json(200, { identity: session.identity, now: demo.clock(), mode: 'LOCAL_DEMO', instanceId });
       if (req.method !== 'POST') return json(404, { error: 'NOT_FOUND' });
       if (!req.headers['content-type']?.startsWith('application/json')) return json(415, { error: 'JSON_REQUIRED' });
       if (Number(req.headers['content-length']) > 65536) { req.resume(); return json(413, { error: 'REQUEST_TOO_LARGE' }); }
