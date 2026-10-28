@@ -3,7 +3,7 @@ const { TradeApiError, copyData, pickData } = require('./trade-errors');
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);
 const fields = { name: 80, phone: 40, province: 80, city: 80, district: 80, detail: 300 };
 
-// 仅运行时内存中的保存恢复；不写本地缓存，不导入wx或云SDK。
+// 仅运行时内存中的地址保存/删除恢复；不写本地缓存，不导入wx或云SDK。
 function createMiniappAddressEditor({ client, assertIdentity, requestId }) {
   let pending = null, busy = false;
   function newId() {
@@ -17,13 +17,15 @@ function createMiniappAddressEditor({ client, assertIdentity, requestId }) {
     try { return await work(); } finally { busy = false; }
   }
   async function sendPending() {
-    const payload = pending.payload;
+    const { kind, payload } = pending;
     try {
-      const result = await client.addresses.save(copyData(payload));
-      if (result?._id !== payload.addressId || result.version !== payload.expectedVersion + 1
-        || typeof result.isDefault !== 'boolean'
-        || Object.keys(fields).some(field => result[field] !== payload[field])
-        || (payload.makeDefault !== undefined && result.isDefault !== payload.makeDefault)) {
+      const result = await (kind === 'remove' ? client.addresses.remove(copyData(payload)) : client.addresses.save(copyData(payload)));
+      const valid = kind === 'remove' ? result?.removed === true && result.version === payload.expectedVersion + 1
+        : result?._id === payload.addressId && result.version === payload.expectedVersion + 1
+        && typeof result.isDefault === 'boolean'
+        && Object.keys(fields).every(field => result[field] === payload[field])
+        && (payload.makeDefault === undefined || result.isDefault === payload.makeDefault);
+      if (!valid) {
         throw new TradeApiError('PROTOCOL_ERROR', { uncertain: true });
       }
       pending = null;
@@ -34,6 +36,14 @@ function createMiniappAddressEditor({ client, assertIdentity, requestId }) {
       throw error;
     }
   }
+  const recoveryError = () => new TradeApiError(pending?.kind === 'remove'
+    ? 'ADDRESS_DELETE_RECOVERY_REQUIRED' : 'ADDRESS_RECOVERY_REQUIRED');
+  const retry = kind => exclusive(async () => {
+    await assertIdentity();
+    if (!pending) throw new TradeApiError('INVALID_STATE');
+    if (pending.kind !== kind) throw recoveryError();
+    return sendPending();
+  });
   return Object.freeze({
     newId, hasPending: () => pending !== null,
     async getPending() { await assertIdentity(); return pending ? copyData(pending) : null; },
@@ -59,18 +69,30 @@ function createMiniappAddressEditor({ client, assertIdentity, requestId }) {
         }
       } catch (error) { return Promise.reject(error); }
       return exclusive(async () => {
-        if (pending) throw new TradeApiError('ADDRESS_RECOVERY_REQUIRED');
+        if (pending) throw recoveryError();
         await assertIdentity();
         payload.requestId = newId();
-        pending = { payload, displayedDefault: payload.makeDefault ?? displayedDefault };
+        pending = { kind: 'save', payload, displayedDefault: payload.makeDefault ?? displayedDefault };
         return sendPending();
       });
     },
-    retry: () => exclusive(async () => {
-      await assertIdentity();
-      if (!pending) throw new TradeApiError('INVALID_STATE');
-      return sendPending();
-    })
+    remove(input) {
+      let payload;
+      try {
+        payload = pickData(input, ['addressId', 'expectedVersion']);
+        if (!validId(payload.addressId) || !Number.isSafeInteger(payload.expectedVersion)
+          || payload.expectedVersion < 0 || payload.expectedVersion >= Number.MAX_SAFE_INTEGER) throw new TradeApiError('INVALID_REQUEST');
+      } catch (error) { return Promise.reject(error); }
+      return exclusive(async () => {
+        if (pending) throw recoveryError();
+        await assertIdentity();
+        payload.requestId = newId();
+        pending = { kind: 'remove', payload };
+        return sendPending();
+      });
+    },
+    retry: () => retry('save'),
+    retryRemove: () => retry('remove')
   });
 }
 module.exports = { createMiniappAddressEditor };

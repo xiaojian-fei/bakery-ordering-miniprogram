@@ -1,5 +1,6 @@
 'use strict';
 const { TradeApiError } = require('./trade-errors');
+const { createAddressDeletion } = require('./miniapp-address-delete');
 const money = cents => (cents / 100).toFixed(2);
 const notice = '新接口接入中：商品和购物车可用，结算及订单页待接入。';
 function productView(item) {
@@ -190,18 +191,15 @@ function createCartPage(dependencies) {
 }
 function createAddressPage({ runtime, wx }) {
   return {
+    ...createAddressDeletion({ runtime, wx }),
     data: { unifiedMode: true, addresses: [], cursor: null, loading: false, loadingMore: false, error: '',
-      addressWritePending: false, runtimeNotice: '可查看、新增和编辑本人地址；删除及结算选择待接入。' },
+      addressWritePending: false, addressDeletePending: false, deleteBusy: false,
+      runtimeNotice: '可管理本人地址；删除需确认，结算选择待接入。' },
     onLoad() {},
     async onShow() {
       this._active = true;
       await this.refreshAddresses();
-      try {
-        const pending = await runtime.addressEditor.getPending();
-        if (this._active) this.setData({ addressWritePending: Boolean(pending) });
-      } catch (error) {
-        if (this._active) this.setData({ error: errorText(error), addresses: [], cursor: null });
-      }
+      await this.syncAddressPending();
     },
     onHide() { deactivate(this); }, onUnload() { deactivate(this); },
     refreshAddresses() { return this.loadAddresses(false); },
@@ -234,8 +232,7 @@ function createAddressPage({ runtime, wx }) {
     editAddress(event) {
       const id = event?.currentTarget?.dataset?.id;
       if (typeof id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(id)) wx.navigateTo({ url: '/pages/add-address/add-address?id=' + encodeURIComponent(id) });
-    },
-    deleteAddress() { wx.showToast({ title: '地址删除尚未接入', icon: 'none' }); }
+    }
   };
 }
 module.exports = { createCatalogPage, createDetailPage, createCartPage, createAddressPage };

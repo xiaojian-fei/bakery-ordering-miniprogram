@@ -14,13 +14,15 @@ function createAddressFormPage({ runtime, wx }) {
     page.setData({ ...Object.fromEntries(fields.map(field => [field, payload[field]])),
       id: payload.addressId, version: payload.expectedVersion, isDefault,
       region: [payload.province, payload.city, payload.district], formReady: true,
-      writePending, pendingNeedsRestore: false, reloadRequired: false, saved: false, error: '' });
+      writePending, deletionPending: false, pendingNeedsRestore: false, reloadRequired: false, saved: false, error: '' });
   }
   function fail(page, error) {
     if (!page._active) return;
-    page.setData({ error: message(error), writePending: editor.hasPending(),
+    page.setData({ error: message(error), writePending: editor.hasPending(), deletionPending: false,
       ...(['VERSION_CONFLICT', 'ADDRESS_NOT_FOUND', 'FORBIDDEN'].includes(error?.code)
         ? { reloadRequired: true, formReady: false } : {}),
+      ...(error?.code === 'ADDRESS_DELETE_RECOVERY_REQUIRED'
+        ? { deletionPending: true, saved: false, formReady: false, pendingNeedsRestore: false } : {}),
       ...(['SESSION_CHANGED', 'UNAUTHENTICATED', 'ACCOUNT_DISABLED'].includes(error?.code)
         ? { ...empty(), formReady: false } : {}) });
   }
@@ -42,7 +44,7 @@ function createAddressFormPage({ runtime, wx }) {
   }
   return {
     data: { unifiedMode: true, ...empty(), id: '', version: 0, loading: false, saving: false,
-      formReady: false, writePending: false, pendingNeedsRestore: false, reloadRequired: false, saved: false, error: '' },
+      formReady: false, writePending: false, pendingNeedsRestore: false, deletionPending: false, reloadRequired: false, saved: false, error: '' },
     onLoad(options = {}) { this._requestedId = options.id || null; },
     async onShow() {
       this._active = true;
@@ -50,7 +52,8 @@ function createAddressFormPage({ runtime, wx }) {
       const epoch = this._epoch = (this._epoch || 0) + 1;
       try {
         const pending = await editor.getPending();
-        if (this._active && this._epoch === epoch) this.setData({ writePending: Boolean(pending),
+        if (pending?.kind === 'remove') throw new TradeApiError('ADDRESS_DELETE_RECOVERY_REQUIRED');
+        if (this._active && this._epoch === epoch) this.setData({ writePending: Boolean(pending), deletionPending: false,
           pendingNeedsRestore: Boolean(pending && pending.payload.addressId !== this.data.id) });
       } catch (error) { if (this._epoch === epoch) fail(this, error); }
     },
@@ -62,6 +65,7 @@ function createAddressFormPage({ runtime, wx }) {
       try {
         const pending = await editor.getPending();
         if (!this._active || this._epoch !== epoch) return;
+        if (pending?.kind === 'remove') throw new TradeApiError('ADDRESS_DELETE_RECOVERY_REQUIRED');
         if (pending) {
           this.setData({ writePending: true, pendingNeedsRestore: true });
           return;
@@ -86,6 +90,7 @@ function createAddressFormPage({ runtime, wx }) {
       const epoch = this._epoch = (this._epoch || 0) + 1;
       try {
         const pending = await editor.getPending();
+        if (pending?.kind === 'remove') throw new TradeApiError('ADDRESS_DELETE_RECOVERY_REQUIRED');
         if (this._active && this._epoch === epoch && pending) display(this, pending.payload, pending.displayedDefault, true);
       } catch (error) { if (this._epoch === epoch) fail(this, error); }
     },

@@ -2,6 +2,7 @@
 <view class="container">
   <view wx:if="{{unifiedMode && loading}}">加载中…</view>
   <view wx:if="{{unifiedMode && error}}" class="runtime-error">{{error}}</view>
+  <button wx:if="{{unifiedMode && deletionPending}}" bindtap="backToAddresses">返回地址列表处理删除</button>
   <view wx:if="{{unifiedMode && pendingNeedsRestore}}" class="runtime-notice">上次保存结果待确认，请先恢复原表单。
     <button bindtap="restorePending" disabled="{{saving || loading}}">恢复上次保存表单</button>
   </view>
