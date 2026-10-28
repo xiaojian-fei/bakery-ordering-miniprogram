@@ -1,6 +1,7 @@
 <!-- pages/address/address.wxml -->
 <view class="address-container">
   <view wx:if="{{unifiedMode}}" class="runtime-notice">{{runtimeNotice}}</view>
+  <view wx:if="{{unifiedMode && selectMode}}" class="runtime-notice">点选一条地址返回购物车；这不会修改默认地址。</view>
   <button wx:if="{{unifiedMode && addressWritePending}}" bindtap="addAddress">继续上次地址保存</button>
   <view wx:if="{{unifiedMode && addressDeletePending}}" class="runtime-notice">上次地址删除结果待确认
     <button bindtap="retryAddressDelete" disabled="{{deleteBusy || loading || loadingMore}}">重试原删除</button>
@@ -11,16 +12,17 @@
   </view>
   <view class="address-list">
     <block wx:for="{{addresses}}" wx:key="_id">
-      <view class="address-item" data-item="{{item}}" bindtap="selectAddress">
+      <view class="address-item" data-id="{{item._id}}" data-item="{{item}}" bindtap="selectAddress">
         <view class="info">
           <text>{{item.name}} {{item.phone}}</text>
           <text>{{item.province}}{{item.city}}{{item.district}}{{item.detail}}</text>
         </view>
         <view wx:if="{{item.isDefault}}" class="default-tag">默认</view>
+        <text wx:if="{{unifiedMode && selectMode && selectionBusy}}">核对中…</text>
       </view>
       <view class="address-actions">
-        <button size="mini" type="default" bindtap="editAddress" data-id="{{item._id}}" disabled="{{unifiedMode && (deleteBusy || addressDeletePending)}}">编辑</button>
-        <button size="mini" type="warn" bindtap="deleteAddress" data-id="{{item._id}}" disabled="{{unifiedMode && (deleteBusy || loading || loadingMore || addressWritePending || addressDeletePending)}}">删除</button>
+        <button size="mini" type="default" bindtap="editAddress" data-id="{{item._id}}" disabled="{{unifiedMode && (selectionBusy || deleteBusy || addressDeletePending)}}">编辑</button>
+        <button size="mini" type="warn" bindtap="deleteAddress" data-id="{{item._id}}" disabled="{{unifiedMode && (selectionBusy || deleteBusy || loading || loadingMore || addressWritePending || addressDeletePending)}}">删除</button>
       </view>
     </block>
     <view wx:if="{{!loading && !error && addresses.length === 0}}" class="empty">{{unifiedMode ? '暂无地址' : '暂无地址，请添加'}}</view>

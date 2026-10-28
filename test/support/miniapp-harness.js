@@ -21,6 +21,7 @@ function miniappHarness(runtime, { legacyCloud = false } = {}) {
     App: definition => { app = definition; },
     Page: definition => {
       const page = { ...definition, data: structuredClone(definition.data || {}), updates: [],
+        getOpenerEventChannel() { return this._openerEventChannel; },
         setData(value) { this.updates.push(structuredClone(value)); Object.assign(this.data, structuredClone(value)); } };
       pages.push(page);
     },
@@ -43,7 +44,9 @@ function miniappHarness(runtime, { legacyCloud = false } = {}) {
   }
   load('app.js');
   return { wx, events, pages, components, app, load,
-    loadPage: route => { load(route + '.js'); return pages[pages.length - 1]; },
+    loadPage: (route, { eventChannel } = {}) => {
+      load(route + '.js'); const page = pages[pages.length - 1]; page._openerEventChannel = eventChannel; return page;
+    },
     cloudReads: () => cloudReads };
 }
 module.exports = { miniappHarness };

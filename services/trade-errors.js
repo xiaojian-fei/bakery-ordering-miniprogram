@@ -40,6 +40,7 @@ const hints = Object.freeze({
   ADDRESS_WRITE_BUSY: ['地址正在处理，请稍候', 'wait'],
   ADDRESS_RECOVERY_REQUIRED: ['上次地址保存结果待确认，请先恢复并重试原保存', 'check_then_retry'],
   ADDRESS_DELETE_RECOVERY_REQUIRED: ['上次地址删除结果待确认，请返回地址列表重试', 'check_then_retry'],
+  ADDRESS_SELECTION_UNAVAILABLE: ['请选择从购物车打开地址列表后重试', 'review'],
   INVALID_CHECKOUT_DRAFT: ['结算草稿已损坏，请核对订单后重新准备', 'review'],
   CHECKOUT_STORAGE_ERROR: ['结算草稿无法保存，请检查本地存储', 'review'],
   CHECKOUT_RECOVERY_REQUIRED: ['有结果未确认的结算，请先找回或核对原订单', 'check_then_retry'],

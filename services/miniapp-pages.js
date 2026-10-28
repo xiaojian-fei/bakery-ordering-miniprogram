@@ -1,6 +1,7 @@
 'use strict';
 const { TradeApiError } = require('./trade-errors');
 const { createAddressDeletion } = require('./miniapp-address-delete');
+const { createCartAddressSelection, createAddressSelector } = require('./miniapp-address-selection');
 const money = cents => (cents / 100).toFixed(2);
 const notice = '新接口接入中：商品和购物车可用，结算及订单页待接入。';
 function productView(item) {
@@ -146,9 +147,15 @@ function createCartPage(dependencies) {
   const { runtime, wx, app } = dependencies;
   return {
     ...base(dependencies),
+    ...createCartAddressSelection(dependencies),
     data: { unifiedMode: true, runtimeNotice: notice, cartItems: [], totalPrice: '0.00', version: 0,
-      loading: false, cartBusy: false, cartWritePending: false, error: '', canCheckout: false },
-    onShow() { this._active = true; this.setData({ cartBusy: Boolean(this._adding) }); return this.loadCart(); },
+      loading: false, cartBusy: false, cartWritePending: false, error: '', canCheckout: false,
+      deliveryType: 'pickup', selectedAddress: null, addressLoading: false, addressError: '' },
+    onShow() {
+      this._active = true; this.setData({ cartBusy: Boolean(this._adding) });
+      return Promise.all([this.loadCart(), this.resumeAddressSelection()]);
+    },
+    onUnload() { deactivate(this); this.disposeAddressSelection(); },
     async loadCart() {
       const epoch = this._epoch = (this._epoch || 0) + 1;
       this.setData({ loading: true, error: '', cartWritePending: runtime.hasPendingCartWrite() });
@@ -192,12 +199,14 @@ function createCartPage(dependencies) {
 function createAddressPage({ runtime, wx }) {
   return {
     ...createAddressDeletion({ runtime, wx }),
+    ...createAddressSelector({ runtime, wx }),
     data: { unifiedMode: true, addresses: [], cursor: null, loading: false, loadingMore: false, error: '',
       addressWritePending: false, addressDeletePending: false, deleteBusy: false,
-      runtimeNotice: '可管理本人地址；删除需确认，结算选择待接入。' },
-    onLoad() {},
+      selectMode: false, selectionBusy: false, runtimeNotice: '可管理本人地址；删除需确认。' },
+    onLoad(options = {}) { this.setData({ selectMode: options.selectMode === 'true' }); },
     async onShow() {
       this._active = true;
+      this._selectionSent = false;
       await this.refreshAddresses();
       await this.syncAddressPending();
     },
@@ -227,7 +236,6 @@ function createAddressPage({ runtime, wx }) {
         if (this._active && this._epoch === epoch) this.setData({ loading: false, loadingMore: false });
       }
     },
-    selectAddress() { wx.showToast({ title: '地址选择将在结算页接入后开放', icon: 'none' }); },
     addAddress() { wx.navigateTo({ url: '/pages/add-address/add-address' }); },
     editAddress(event) {
       const id = event?.currentTarget?.dataset?.id;

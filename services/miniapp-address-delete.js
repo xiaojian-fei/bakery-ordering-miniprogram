@@ -7,7 +7,7 @@ const recoveryError = pending => new TradeApiError(pending?.kind === 'remove'
 function createAddressDeletion({ runtime, wx }) {
   const editor = runtime.addressEditor;
   async function run(page, work) {
-    if (!page._active || page._deleting || page.data.loading || page.data.loadingMore) return;
+    if (!page._active || page._deleting || page._selecting || page.data.loading || page.data.loadingMore) return;
     page._deleting = true; page.setData({ deleteBusy: true, error: '' });
     let attempted = false, error = null;
     try { await work(() => { attempted = true; }); }
