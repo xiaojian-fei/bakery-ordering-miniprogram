@@ -9,6 +9,7 @@ function createCartAddressSelection({ runtime, wx }) {
     onDeliveryTypeChange(event) {
       const value = event?.detail?.value;
       if (!['pickup', 'delivery'].includes(value) || value === this.data.deliveryType) return;
+      this.invalidateQuote?.();
       this._addressPickerEpoch = (this._addressPickerEpoch || 0) + 1;
       this._addressReadEpoch = (this._addressReadEpoch || 0) + 1;
       this._pickerOpening = false; this._selectedAddressId = null;
@@ -24,6 +25,7 @@ function createCartAddressSelection({ runtime, wx }) {
           if (accepted || this._addressDisposed || this._addressPickerEpoch !== epoch
             || this.data.deliveryType !== 'delivery' || !validId(value?.addressId)) return;
           accepted = true;
+          this.invalidateQuote?.();
           // 导航返回前购物车通常处于隐藏状态，只暂存ID，onShow再读取完整服务器地址。
           this._selectedAddressId = value.addressId;
           if (this._active) return this.refreshSelectedAddress();
@@ -41,6 +43,7 @@ function createCartAddressSelection({ runtime, wx }) {
     },
     async refreshSelectedAddress() {
       if (!this._active) return;
+      this.invalidateQuote?.();
       const epoch = this._addressReadEpoch = (this._addressReadEpoch || 0) + 1;
       const id = this._selectedAddressId;
       if (this.data.deliveryType !== 'delivery' || !id) {

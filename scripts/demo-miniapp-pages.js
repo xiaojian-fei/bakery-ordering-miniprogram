@@ -39,6 +39,10 @@ async function main() {
   addresses.onHide(); await cart.onShow();
   assert.equal(cart.data.selectedAddress._id, form.data.id);
   assert.equal(cart.data.selectedAddress.detail, '虚构演示地址（已修改）');
+  await cart.goToOrder();
+  assert.equal(cart.data.checkoutQuote.subtotal, '25.00');
+  assert.equal(cart.data.checkoutQuote.shipping, '13.00');
+  assert.equal(cart.data.checkoutQuote.total, '38.00');
   addresses.onLoad({}); await addresses.onShow();
   const deletion = addresses.deleteAddress({ currentTarget: { dataset: { id: form.data.id } } });
   let modal;
@@ -49,11 +53,12 @@ async function main() {
   assert.ok(modal, '应展示删除确认'); modal.options.success({ confirm: true }); await deletion;
   assert.equal(addresses.data.addresses.length, 0);
   assert.equal((await client.addresses.list()).defaultAddressId, null);
-  await cart.onShow(); assert.equal(cart.data.selectedAddress, null);
+  await cart.onShow(); assert.equal(cart.data.selectedAddress, null); assert.equal(cart.data.checkoutQuote, null);
   assert.equal(cloudReads() + editing.cloudReads(), 0);
   console.log('原App/Page入口本地执行：商品2种 → 详情加购 → 购物车2件，估算25.00元。');
   console.log('新增默认地址 → 编辑至版本2 → 地址列表：本人虚构地址1条，内容及默认标记正确。');
   console.log('配送选址 → 只回传ID → 返回购物车核对最新地址，未创建订单或支付。');
+  console.log('结算报价预览：商品25.00元＋运费13.00元＝38.00元，不预留库存。');
   console.log('模拟确认删除 → 列表0条、默认指针清空；删除版本3。');
   console.log('购物车重新显示时清除已删除地址，不自动更换收货地址。');
   console.log('wx.cloud访问0次；未迁移页面已隔离。虚构数据、内存服务，未执行微信编译或WXML渲染。');

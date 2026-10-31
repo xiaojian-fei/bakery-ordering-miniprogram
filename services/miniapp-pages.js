@@ -2,8 +2,9 @@
 const { TradeApiError } = require('./trade-errors');
 const { createAddressDeletion } = require('./miniapp-address-delete');
 const { createCartAddressSelection, createAddressSelector } = require('./miniapp-address-selection');
+const { createCartQuote } = require('./miniapp-cart-quote');
 const money = cents => (cents / 100).toFixed(2);
-const notice = '新接口接入中：商品和购物车可用，结算及订单页待接入。';
+const notice = '新接口接入中：商品、购物车及报价预览可用，下单及订单页待接入。';
 function productView(item) {
   return { ...item, price: money(item.priceCents), emoji: item.category.includes('膏') ? '🍯' : '🍪',
     hasImage: typeof item.image === 'string' && /^(https:\/\/|cloud:\/\/|\/images\/)/.test(item.image) };
@@ -148,15 +149,19 @@ function createCartPage(dependencies) {
   return {
     ...base(dependencies),
     ...createCartAddressSelection(dependencies),
+    ...createCartQuote(dependencies),
     data: { unifiedMode: true, runtimeNotice: notice, cartItems: [], totalPrice: '0.00', version: 0,
       loading: false, cartBusy: false, cartWritePending: false, error: '', canCheckout: false,
-      deliveryType: 'pickup', selectedAddress: null, addressLoading: false, addressError: '' },
+      deliveryType: 'pickup', selectedAddress: null, addressLoading: false, addressError: '',
+      checkoutQuote: null, quoteLoading: false, quoteError: '' },
     onShow() {
       this._active = true; this.setData({ cartBusy: Boolean(this._adding) });
       return Promise.all([this.loadCart(), this.resumeAddressSelection()]);
     },
-    onUnload() { deactivate(this); this.disposeAddressSelection(); },
+    onHide() { deactivate(this); this.invalidateQuote(); },
+    onUnload() { deactivate(this); this.invalidateQuote(); this.disposeAddressSelection(); },
     async loadCart() {
+      this.invalidateQuote();
       const epoch = this._epoch = (this._epoch || 0) + 1;
       this.setData({ loading: true, error: '', cartWritePending: runtime.hasPendingCartWrite() });
       try {
@@ -179,6 +184,7 @@ function createCartPage(dependencies) {
       const item = this.data.cartItems.find(row => row.productId === id);
       if (!item || !['plus', 'minus'].includes(op)) return;
       const quantity = item.quantity + (op === 'plus' ? 1 : -1);
+      this.invalidateQuote();
       this._adding = true; this.setData({ cartBusy: true });
       try {
         const cart = await runtime.setCartQuantity({ productId: id, quantity, expectedVersion: this.data.version });
@@ -191,6 +197,7 @@ function createCartPage(dependencies) {
       }
     },
     async retryCartWrite() {
+      this.invalidateQuote();
       await base(dependencies).retryCartWrite.call(this);
       if (this._active) await this.loadCart();
     }

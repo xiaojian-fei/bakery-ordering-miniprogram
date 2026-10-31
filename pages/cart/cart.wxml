@@ -74,8 +74,26 @@
     </view>
     <view wx:if="{{!loading && !error && cartItems.length === 0}}" class="empty-cart">购物车空空如也～</view>
   </view>
+  <view wx:if="{{quoteError}}" class="runtime-error">{{quoteError}}
+    <button size="mini" bindtap="goToOrder" disabled="{{loading || cartBusy || cartWritePending || addressLoading || quoteLoading}}">重新报价</button>
+    <button size="mini" bindtap="loadCart" disabled="{{loading || cartBusy}}">刷新购物车</button>
+  </view>
+  <view wx:if="{{checkoutQuote}}" class="quote-preview">
+    <view class="quote-title">结算报价预览</view>
+    <view>{{checkoutQuote.deliveryType === 'pickup' ? '到店自取' : '配送到家'}}</view>
+    <view wx:if="{{checkoutQuote.address}}">{{checkoutQuote.address.name}} {{checkoutQuote.address.phone}}
+      <view>{{checkoutQuote.address.province}}{{checkoutQuote.address.city}}{{checkoutQuote.address.district}}{{checkoutQuote.address.detail}}</view>
+    </view>
+    <view wx:for="{{checkoutQuote.items}}" wx:key="productId" class="quote-row">
+      <text>{{item.name}} × {{item.quantity}}（¥{{item.price}}/件）</text><text>¥{{item.total}}</text>
+    </view>
+    <view class="quote-row"><text>商品金额</text><text>¥{{checkoutQuote.subtotal}}</text></view>
+    <view class="quote-row"><text>运费</text><text>¥{{checkoutQuote.shipping}}</text></view>
+    <view class="quote-row quote-title"><text>合计</text><text>¥{{checkoutQuote.total}}</text></view>
+    <view class="quote-note">报价未锁定价格或库存，尚未创建订单。下单时将重新核对。</view>
+  </view>
   <view class="total-bar"><text>商品估算：¥{{totalPrice}}（不含运费）</text>
-    <button bindtap="goToOrder">结算待接入</button>
+    <button bindtap="goToOrder" loading="{{quoteLoading}}" disabled="{{loading || cartBusy || cartWritePending || addressLoading || quoteLoading || !canCheckout}}">预览结算</button>
   </view>
 </view>
 <custom-tab-bar />

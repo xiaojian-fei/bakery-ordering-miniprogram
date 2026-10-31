@@ -154,14 +154,14 @@ test('原微信页面接入：所有未迁移页面入口受保护，不加载�
   }
 });
 
-test('原微信页面接入：底栏/管理/结算入口不跳入旧数据流程', async () => {
+test('原微信页面接入：底栏/管理入口受保护，空购物车报价不跳入旧数据流程', async () => {
   const { loadPage, load, components, events } = fixture();
   load('components/custom-tab-bar/index.js');
   components[0].methods.switchTab({ currentTarget: { dataset: { path: '/pages/orders/orders' } } });
   const home = loadPage('pages/index/index'); home.goToAdmin();
-  const cart = loadPage('pages/cart/cart'); cart.goToOrder();
+  const cart = loadPage('pages/cart/cart'); await cart.onShow(); await cart.goToOrder();
   assert.equal(events.filter(event => event.name === 'switchTab' || event.name === 'navigateTo').length, 0);
-  assert.ok(events.some(event => event.options.title === '结算页尚未接入新接口'));
+  assert.equal(cart.data.quoteError, '请先加载并检查购物车商品');
 });
 
 test('原微信页面接入：配置为空时保留旧页面，未强制启用新后端', () => {

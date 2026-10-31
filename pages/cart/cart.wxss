@@ -1,4 +1,8 @@
 /* pages/cart/cart.wxss */
+.quote-preview { background: white; padding: 16px; border-radius: 16px; margin-top: 16px; }
+.quote-title { font-weight: bold; margin-bottom: 8px; }
+.quote-row { display: flex; justify-content: space-between; margin-top: 10px; gap: 12px; }
+.quote-note { color: #666; font-size: 12px; margin-top: 12px; }
 .cart-container {
   padding: 16px;
   padding-bottom: 220rpx;
