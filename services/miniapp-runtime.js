@@ -1,20 +1,22 @@
 'use strict';
 const { TradeApiError, copyData } = require('./trade-errors');
 const { createMiniappAddressEditor } = require('./miniapp-address-editor');
+const { createCheckoutRecovery } = require('./checkout-recovery');
 
 const routes = Object.freeze(['/pages/index/index', '/pages/detail/detail', '/pages/cart/cart', '/pages/address/address', '/pages/add-address/add-address']);
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);
 
 // 平台无关的页面运行时。client使用可信send；requestId由调用方提供，不能在失败重试时重建。
-function createMiniappRuntime({ client, subjectId = null, requestId } = {}) {
+function createMiniappRuntime({ client, subjectId = null, requestId, checkoutNamespace = 'bakery.checkout.v1' } = {}) {
   if (!client || !['me'].every(method => typeof client.identity?.[method] === 'function')
     || !['get', 'setLine'].every(method => typeof client.cart?.[method] === 'function')
     || typeof client.catalog?.list !== 'function' || typeof client.catalog?.get !== 'function'
     || typeof client.shop?.get !== 'function' || typeof requestId !== 'function'
+    || typeof checkoutNamespace !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/.test(checkoutNamespace)
     || (subjectId !== null && (typeof subjectId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(subjectId)))) {
     throw new TradeApiError('INVALID_REQUEST');
   }
-  let pending = null, busy = false;
+  let pending = null, busy = false, recovery = null;
   async function assertIdentity() {
     const actor = await client.identity.me();
     if (subjectId === null && typeof actor?.openid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(actor.openid)) subjectId = actor.openid;
@@ -54,6 +56,17 @@ function createMiniappRuntime({ client, subjectId = null, requestId } = {}) {
   return Object.freeze({
     addressEditor: createMiniappAddressEditor({ client, assertIdentity, requestId }),
     client, get subjectId() { return subjectId; }, assertIdentity,
+    checkoutNamespace,
+    newCheckoutRequestId() {
+      const id = requestId();
+      if (!validId(id) || id.length < 8) throw new TradeApiError('INVALID_REQUEST');
+      return id;
+    },
+    async getCheckoutRecovery(storage) {
+      await assertIdentity();
+      if (!recovery) recovery = createCheckoutRecovery({ client, storage, subjectId, namespace: checkoutNamespace });
+      return recovery;
+    },
     isRouteAvailable: path => routes.includes(path),
     hasPendingCartWrite: () => pending !== null,
     async readCart() { await assertIdentity(); return client.cart.get(); },

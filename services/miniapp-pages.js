@@ -3,8 +3,9 @@ const { TradeApiError } = require('./trade-errors');
 const { createAddressDeletion } = require('./miniapp-address-delete');
 const { createCartAddressSelection, createAddressSelector } = require('./miniapp-address-selection');
 const { createCartQuote } = require('./miniapp-cart-quote');
+const { createCheckoutSubmission } = require('./miniapp-checkout-submit');
 const money = cents => (cents / 100).toFixed(2);
-const notice = '新接口接入中：商品、购物车及报价预览可用，下单及订单页待接入。';
+const notice = '新接口接入中：商品、购物车、报价及确认下单可用，支付及其他订单页待接入。';
 function productView(item) {
   return { ...item, price: money(item.priceCents), emoji: item.category.includes('膏') ? '🍯' : '🍪',
     hasImage: typeof item.image === 'string' && /^(https:\/\/|cloud:\/\/|\/images\/)/.test(item.image) };
@@ -150,16 +151,18 @@ function createCartPage(dependencies) {
     ...base(dependencies),
     ...createCartAddressSelection(dependencies),
     ...createCartQuote(dependencies),
+    ...createCheckoutSubmission(dependencies),
     data: { unifiedMode: true, runtimeNotice: notice, cartItems: [], totalPrice: '0.00', version: 0,
       loading: false, cartBusy: false, cartWritePending: false, error: '', canCheckout: false,
       deliveryType: 'pickup', selectedAddress: null, addressLoading: false, addressError: '',
-      checkoutQuote: null, quoteLoading: false, quoteError: '' },
+      checkoutQuote: null, quoteLoading: false, quoteError: '', checkoutReady: false, checkoutBusy: false,
+      checkoutState: '', checkoutError: '', checkoutDraftTotal: '', placedOrder: null },
     onShow() {
       this._active = true; this.setData({ cartBusy: Boolean(this._adding) });
-      return Promise.all([this.loadCart(), this.resumeAddressSelection()]);
+      return Promise.all([this.loadCart(), this.resumeAddressSelection(), this.syncCheckout()]);
     },
-    onHide() { deactivate(this); this.invalidateQuote(); },
-    onUnload() { deactivate(this); this.invalidateQuote(); this.disposeAddressSelection(); },
+    onHide() { deactivate(this); this.invalidateQuote(); this.pauseCheckout(); },
+    onUnload() { deactivate(this); this.invalidateQuote(); this.pauseCheckout(); this.disposeAddressSelection(); },
     async loadCart() {
       this.invalidateQuote();
       const epoch = this._epoch = (this._epoch || 0) + 1;
@@ -179,7 +182,7 @@ function createCartPage(dependencies) {
       }
     },
     async changeQuantity(event) {
-      if (this._adding || this.data.loading) return;
+      if (this._adding || this.data.loading || this._checkoutBusy) return;
       const { id, op } = event.currentTarget.dataset;
       const item = this.data.cartItems.find(row => row.productId === id);
       if (!item || !['plus', 'minus'].includes(op)) return;
@@ -197,6 +200,7 @@ function createCartPage(dependencies) {
       }
     },
     async retryCartWrite() {
+      if (this._checkoutBusy) return;
       this.invalidateQuote();
       await base(dependencies).retryCartWrite.call(this);
       if (this._active) await this.loadCart();

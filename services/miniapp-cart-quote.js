@@ -1,5 +1,5 @@
 'use strict';
-const { TradeApiError } = require('./trade-errors');
+const { TradeApiError, copyData } = require('./trade-errors');
 const money = value => (value / 100).toFixed(2);
 const linesKey = items => JSON.stringify(items.map(({ productId, quantity }) => ({ productId, quantity }))
   .sort((a, b) => a.productId.localeCompare(b.productId)));
@@ -35,6 +35,7 @@ function quoteView(quote, items) {
 function createCartQuote({ runtime }) {
   return {
     invalidateQuote() {
+      this._quoteSelection = null;
       this._quoteEpoch = (this._quoteEpoch || 0) + 1;
       this._quoteRequest = null;
       // 隐藏页面不调用setData；下次onShow/loadCart会清理展示状态。
@@ -42,7 +43,8 @@ function createCartQuote({ runtime }) {
     },
     async goToOrder() {
       if (!this._active || (this._quoteRequest !== null && this._quoteRequest !== undefined)
-        || this.data.loading || this.data.cartBusy || this._adding || this.data.addressLoading) return;
+        || ['CONFIRMED', 'SUBMITTING', 'UNCERTAIN'].includes(this.data.checkoutState)
+        || this._checkoutBusy || this.data.loading || this.data.cartBusy || this._adding || this.data.addressLoading) return;
       this.invalidateQuote();
       if (runtime.hasPendingCartWrite()) {
         this.setData({ quoteError: new TradeApiError('CART_RECOVERY_REQUIRED').message }); return;
@@ -98,6 +100,9 @@ function createCartQuote({ runtime }) {
         await runtime.assertIdentity();
         if (!current()) return;
         if (runtime.hasPendingCartWrite()) throw new TradeApiError('CART_RECOVERY_REQUIRED');
+        this._quoteSelection = copyData({ input: { items, deliveryType,
+          ...(deliveryType === 'delivery' ? { addressId } : {}) }, quote: result, cartVersion: version,
+        addressVersion: savedAddress?.version ?? null, address });
         this.setData({ checkoutQuote: { ...view, deliveryType, address } });
       } catch (error) {
         if (!current()) return;
@@ -116,4 +121,4 @@ function createCartQuote({ runtime }) {
     }
   };
 }
-module.exports = { createCartQuote };
+module.exports = { createCartQuote, quoteView, addressView, linesKey };

@@ -5,11 +5,17 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '../..');
 
 // 执行真实App/Page/Component入口与生命周期，不模拟WXML渲染或微信编译器。
-function miniappHarness(runtime, { legacyCloud = false } = {}) {
+function miniappHarness(runtime, { legacyCloud = false, storage = new Map() } = {}) {
   const events = [], pages = [], components = [], cache = new Map();
   let app, cloudReads = 0;
   const wx = Object.fromEntries(['showToast', 'showModal', 'navigateTo', 'navigateBack', 'switchTab', 'makePhoneCall', 'setClipboardData']
     .map(name => [name, options => { events.push({ name, options }); }]));
+  Object.assign(wx, {
+    getStorageInfoSync: () => ({ keys: [...storage.keys()] }),
+    getStorageSync: key => structuredClone(storage.get(key)),
+    setStorageSync: (key, value) => storage.set(key, structuredClone(value)),
+    removeStorageSync: key => storage.delete(key)
+  });
   Object.defineProperty(wx, 'cloud', { get() {
     cloudReads += 1;
     if (!legacyCloud) throw new Error('UNEXPECTED_CLOUD_ACCESS');
@@ -43,7 +49,7 @@ function miniappHarness(runtime, { legacyCloud = false } = {}) {
     return module.exports;
   }
   load('app.js');
-  return { wx, events, pages, components, app, load,
+  return { wx, events, pages, components, app, load, storage,
     loadPage: (route, { eventChannel } = {}) => {
       load(route + '.js'); const page = pages[pages.length - 1]; page._openerEventChannel = eventChannel; return page;
     },

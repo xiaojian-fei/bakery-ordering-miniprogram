@@ -7,6 +7,7 @@ const message = error => error instanceof TradeApiError ? error.message : 'æ”¶è´
 function createCartAddressSelection({ runtime, wx }) {
   return {
     onDeliveryTypeChange(event) {
+      if (this._checkoutBusy) return;
       const value = event?.detail?.value;
       if (!['pickup', 'delivery'].includes(value) || value === this.data.deliveryType) return;
       this.invalidateQuote?.();
@@ -16,7 +17,7 @@ function createCartAddressSelection({ runtime, wx }) {
       this.setData({ deliveryType: value, selectedAddress: null, addressLoading: false, addressError: '' });
     },
     openAddressPicker() {
-      if (!this._active || this._pickerOpening || this.data.deliveryType !== 'delivery') return;
+      if (!this._active || this._checkoutBusy || this._pickerOpening || this.data.deliveryType !== 'delivery') return;
       const epoch = this._addressPickerEpoch = (this._addressPickerEpoch || 0) + 1;
       this._pickerOpening = true;
       let accepted = false;

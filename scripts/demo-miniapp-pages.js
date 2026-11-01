@@ -9,7 +9,7 @@ async function main() {
   const demo = await createLocalDemo();
   const client = await demo.client('buyer');
   const runtime = createMiniappRuntime({ client, requestId: () => 'cart-' + randomUUID() });
-  const { app, loadPage, cloudReads, events } = miniappHarness(runtime);
+  const { app, loadPage, cloudReads, events, storage } = miniappHarness(runtime);
   await app.onLaunch();
   const home = loadPage('pages/index/index'); await home.onShow();
   assert.equal(home.data.products.length, 2);
@@ -54,13 +54,20 @@ async function main() {
   assert.equal(addresses.data.addresses.length, 0);
   assert.equal((await client.addresses.list()).defaultAddressId, null);
   await cart.onShow(); assert.equal(cart.data.selectedAddress, null); assert.equal(cart.data.checkoutQuote, null);
-  assert.equal(cloudReads() + editing.cloudReads(), 0);
+  cart.onDeliveryTypeChange(change('pickup')); await cart.goToOrder(); await cart.submitQuotedOrder();
+  assert.equal(cart.data.placedOrder.status, 'PENDING_PAYMENT'); assert.equal(cart.data.placedOrder.total, '25.00');
+  const restored = miniappHarness(createMiniappRuntime({ client, requestId: () => 'cart-' + randomUUID() }), { storage });
+  const restoredCart = restored.loadPage('pages/cart/cart'); await restoredCart.onShow();
+  assert.equal(restoredCart.data.placedOrder.id, cart.data.placedOrder.id);
+  assert.equal(restoredCart.data.checkoutState, 'CONFIRMED');
+  assert.equal(cloudReads() + editing.cloudReads() + restored.cloudReads(), 0);
   console.log('原App/Page入口本地执行：商品2种 → 详情加购 → 购物车2件，估算25.00元。');
   console.log('新增默认地址 → 编辑至版本2 → 地址列表：本人虚构地址1条，内容及默认标记正确。');
   console.log('配送选址 → 只回传ID → 返回购物车核对最新地址，未创建订单或支付。');
   console.log('结算报价预览：商品25.00元＋运费13.00元＝38.00元，不预留库存。');
   console.log('模拟确认删除 → 列表0条、默认指针清空；删除版本3。');
   console.log('购物车重新显示时清除已删除地址，不自动更换收货地址。');
+  console.log('切回自取 → 重新报价25.00元 → 人工确认创建待支付订单 → 重建运行时只读找回同一订单。');
   console.log('wx.cloud访问0次；未迁移页面已隔离。虚构数据、内存服务，未执行微信编译或WXML渲染。');
 }
 main().catch(() => { console.error('原页面本地贯通失败，请运行npm test查看具体用例。'); process.exitCode = 1; });
