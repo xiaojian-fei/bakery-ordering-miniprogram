@@ -1,9 +1,24 @@
 <!-- pages/orders/orders.wxml -->
 <view wx:if="{{unifiedMode}}" class="orders-container">
-  <picker range="{{filters}}" value="{{filter}}" bindchange="changeFilter">
+  <picker range="{{filters}}" value="{{filter}}" bindchange="changeFilter" disabled="{{actionBusy}}">
     <view class="order-header">筛选：{{filters[filter]}} ▾</view>
   </picker>
-  <button size="mini" bindtap="refreshOrders" disabled="{{loading}}">刷新订单</button>
+  <button size="mini" bindtap="refreshOrders" disabled="{{loading || actionBusy}}">刷新订单</button>
+  <button size="mini" bindtap="toggleSaleHistory" disabled="{{actionBusy}}">{{showSales ? '收起售后记录' : '查看售后记录'}}</button>
+  <view wx:if="{{actionError}}" class="runtime-error">{{actionError}}</view>
+  <view wx:if="{{actionNotice}}">{{actionNotice}}</view>
+  <view wx:if="{{actionBusy}}">正在处理…</view>
+  <button wx:if="{{salePending}}" size="mini" bindtap="retrySale" disabled="{{actionBusy}}">重试原售后申请</button>
+  <view wx:if="{{showSales}}" class="order-card">
+    <view class="order-header">我的售后</view>
+    <view wx:if="{{!saleRows.length && !actionBusy && !actionError}}">暂无售后记录</view>
+    <view wx:for="{{saleRows}}" wx:for-item="sale" wx:key="id" class="order-remark">
+      <view>{{sale.status}} · 订单 {{sale.orderId}}</view>
+      <view>申请原因：{{sale.reason}}</view>
+      <view wx:if="{{sale.reviewReason}}">审核说明：{{sale.reviewReason}}</view>
+    </view>
+    <button wx:if="{{saleCursor || actionError}}" size="mini" bindtap="loadSaleHistory" disabled="{{actionBusy}}">{{actionError ? '重试查询' : '更多售后记录'}}</button>
+  </view>
   <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
   <view wx:if="{{loading}}">正在加载订单…</view>
   <view wx:if="{{!loading && !error && !orderRows.length}}" class="empty">暂无订单</view>
@@ -19,6 +34,22 @@
     </view>
     <view>商品 ¥{{item.subtotal}} · 运费 ¥{{item.shipping}}</view>
     <view class="total">合计 ¥{{item.total}}</view>
+    <view class="order-buttons">
+      <button wx:if="{{item.canPay}}" size="mini" type="primary" bindtap="payOrder" data-id="{{item.id}}" disabled="{{actionBusy}}">模拟支付</button>
+      <button wx:if="{{item.canPay}}" size="mini" bindtap="cancelPendingOrder" data-id="{{item.id}}" disabled="{{actionBusy}}">取消订单</button>
+      <button wx:if="{{item.canPickup}}" size="mini" bindtap="revealPickup" data-id="{{item.id}}" disabled="{{actionBusy}}">查看自取码</button>
+      <button wx:if="{{item.canApply}}" size="mini" bindtap="openSaleForm" data-id="{{item.id}}" disabled="{{actionBusy || salePending}}">申请售后</button>
+    </view>
+    <view wx:if="{{pickup && pickup.id === item.id}}" class="order-remark">
+      <view>自取码：{{pickup.code}}</view>
+      <view>到店后向工作人员出示。</view>
+      <button size="mini" bindtap="hidePickup">隐藏自取码</button>
+    </view>
+    <view wx:if="{{saleOrderId === item.id}}" class="order-remark">
+      <textarea placeholder="填写售后原因" maxlength="200" value="{{saleReason}}" bindinput="editSaleReason" disabled="{{actionBusy || salePending}}" />
+      <button size="mini" type="primary" bindtap="submitSale" disabled="{{actionBusy || salePending}}">提交申请</button>
+      <button size="mini" bindtap="closeSaleForm" disabled="{{actionBusy || salePending}}">关闭</button>
+    </view>
     <button size="mini" bindtap="selectTimeline" data-id="{{item.id}}">{{selectedId === item.id ? '收起进度' : '查看进度'}}</button>
     <view wx:if="{{selectedId === item.id}}">
       <view wx:for="{{events}}" wx:for-item="entry" wx:key="version">{{entry.time}} · {{entry.label}}</view>

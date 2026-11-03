@@ -1,5 +1,6 @@
 'use strict';
 const { TradeApiError } = require('./trade-errors');
+const { createOrderActions, orderActions } = require('./miniapp-order-actions');
 
 const labels = {
   PENDING_PAYMENT: '待支付', PENDING_ACCEPTANCE: '待接单', ACCEPTED: '已接单',
@@ -14,20 +15,30 @@ const sessionLost = error => ['SESSION_CHANGED', 'UNAUTHENTICATED', 'ACCOUNT_DIS
 
 function orderView(order) {
   const address = order.addressSnapshot;
-  return { id: order._id, status: statusLabel(order.status), time: date(order.createdAt),
+  return { ...orderActions(order), id: order._id, status: statusLabel(order.status), time: date(order.createdAt),
     delivery: order.deliveryType === 'pickup' ? '自取' : '配送', remark: order.remark || '',
     address: address ? [address.name, address.phone, address.province + address.city + address.district + address.detail].join(' ') : '',
     items: order.items.map(row => ({ id: row.productId, name: row.name, quantity: row.quantity, total: money(row.lineTotalCents) })),
     subtotal: money(order.amounts.subtotalCents), shipping: money(order.amounts.shippingCents), total: money(order.amounts.totalCents) };
 }
 
-function createOrdersPage({ runtime }) {
+function createOrdersPage({ runtime, wx }) {
   return {
+    ...createOrderActions({ runtime, wx }),
     data: { unifiedMode: true, orderRows: [], cursor: null, loading: false, error: '',
       filter: 0, filters: ['全部订单', ...Object.values(labels)], selectedId: '', events: [], eventCursor: null,
-      timelineLoading: false, timelineError: '' },
-    onShow() { this._visible = true; return this.refreshOrders(); },
-    onHide() { this._visible = false; this._listRun = null; this._timelineRun = null; },
+      timelineLoading: false, timelineError: '', actionBusy: false, actionNotice: '', actionError: '', pickup: null,
+      saleOrderId: '', saleReason: '', salePending: false, showSales: false, saleRows: [], saleCursor: null },
+    onShow() {
+      this._visible = true;
+      this._orderVisit = {};
+      this.setData({ actionNotice: '', actionError: '', pickup: null, showSales: false, saleRows: [], saleCursor: null });
+      return this.refreshOrders();
+    },
+    onHide() {
+      this._visible = false; this._listRun = null; this._timelineRun = null;
+      this.setData({ pickup: null });
+    },
     onUnload() { this.onHide(); },
     changeFilter(event) {
       const filter = Number(event.detail.value);
@@ -37,7 +48,8 @@ function createOrdersPage({ runtime }) {
     },
     refreshOrders() {
       this._timelineRun = null;
-      this.setData({ orderRows: [], cursor: null, selectedId: '', events: [], eventCursor: null, timelineError: '', timelineLoading: false });
+      this.setData({ orderRows: [], cursor: null, selectedId: '', events: [], eventCursor: null, pickup: null,
+        saleOrderId: '', saleReason: '', timelineError: '', timelineLoading: false });
       return this.loadOrders(false);
     },
     loadMoreOrders() {
@@ -102,7 +114,8 @@ function createOrdersPage({ runtime }) {
         this._listRun = null;
         this._timelineRun = null;
         this.setData({ orderRows: [], cursor: null, selectedId: '', events: [], eventCursor: null,
-          loading: false, timelineLoading: false, error: message(error) });
+          loading: false, timelineLoading: false, pickup: null, saleRows: [], saleCursor: null, showSales: false,
+          saleOrderId: '', saleReason: '', actionNotice: '', error: message(error) });
       } else this.setData({ [field]: message(error) });
     }
   };
