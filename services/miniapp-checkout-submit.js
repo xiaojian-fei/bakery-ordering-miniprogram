@@ -53,6 +53,7 @@ function createCheckoutSubmission({ runtime, wx }) {
       }
     },
     pauseCheckout() { this._checkoutEpoch = (this._checkoutEpoch || 0) + 1; },
+    viewMyOrders() { wx.switchTab({ url: '/pages/orders/orders' }); },
     async finishCheckout() {
       const order = this.data.placedOrder;
       if (!this._active || this._checkoutBusy || !order || this.data.checkoutState !== 'CONFIRMED') return;

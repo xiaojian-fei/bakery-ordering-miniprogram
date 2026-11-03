@@ -1,5 +1,36 @@
 <!-- pages/orders/orders.wxml -->
-<view class="orders-container">
+<view wx:if="{{unifiedMode}}" class="orders-container">
+  <picker range="{{filters}}" value="{{filter}}" bindchange="changeFilter">
+    <view class="order-header">筛选：{{filters[filter]}} ▾</view>
+  </picker>
+  <button size="mini" bindtap="refreshOrders" disabled="{{loading}}">刷新订单</button>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
+  <view wx:if="{{loading}}">正在加载订单…</view>
+  <view wx:if="{{!loading && !error && !orderRows.length}}" class="empty">暂无订单</view>
+  <view wx:for="{{orderRows}}" wx:key="id" class="order-card">
+    <view class="order-header"><text>{{item.id}}</text><text class="order-status">{{item.status}}</text></view>
+    <view class="order-info"><text>{{item.delivery}}</text><text>{{item.time}}</text></view>
+    <view wx:if="{{item.address}}" class="order-address">{{item.address}}</view>
+    <view wx:if="{{item.remark}}" class="order-remark">备注：{{item.remark}}</view>
+    <view class="order-items">
+      <view wx:for="{{item.items}}" wx:for-item="line" wx:key="id" class="order-item">
+        <text>{{line.name}} × {{line.quantity}}</text><text>¥{{line.total}}</text>
+      </view>
+    </view>
+    <view>商品 ¥{{item.subtotal}} · 运费 ¥{{item.shipping}}</view>
+    <view class="total">合计 ¥{{item.total}}</view>
+    <button size="mini" bindtap="selectTimeline" data-id="{{item.id}}">{{selectedId === item.id ? '收起进度' : '查看进度'}}</button>
+    <view wx:if="{{selectedId === item.id}}">
+      <view wx:for="{{events}}" wx:for-item="entry" wx:key="version">{{entry.time}} · {{entry.label}}</view>
+      <view wx:if="{{timelineLoading}}">正在加载进度…</view>
+      <view wx:if="{{timelineError}}" class="runtime-error">{{timelineError}}</view>
+      <view wx:if="{{!timelineLoading && !timelineError && !events.length}}">暂无进度记录</view>
+      <button wx:if="{{eventCursor || timelineError}}" size="mini" bindtap="loadTimeline" disabled="{{timelineLoading}}">{{timelineError ? '重试' : '更多进度'}}</button>
+    </view>
+  </view>
+  <button wx:if="{{cursor}}" bindtap="loadMoreOrders" disabled="{{loading}}">加载更多订单</button>
+</view>
+<view wx:else class="orders-container">
   <block wx:for="{{orders}}" wx:key="_id">
     <view class="order-card">
       <view class="order-header">

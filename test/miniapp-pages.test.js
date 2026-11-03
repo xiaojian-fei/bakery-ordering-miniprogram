@@ -157,11 +157,38 @@ test('原微信页面接入：所有未迁移页面入口受保护，不加载�
 test('原微信页面接入：底栏/管理入口受保护，空购物车报价不跳入旧数据流程', async () => {
   const { loadPage, load, components, events } = fixture();
   load('components/custom-tab-bar/index.js');
-  components[0].methods.switchTab({ currentTarget: { dataset: { path: '/pages/orders/orders' } } });
+  components[0].methods.switchTab({ currentTarget: { dataset: { path: '/pages/pay/pay' } } });
   const home = loadPage('pages/index/index'); home.goToAdmin();
   const cart = loadPage('pages/cart/cart'); await cart.onShow(); await cart.goToOrder();
   assert.equal(events.filter(event => event.name === 'switchTab' || event.name === 'navigateTo').length, 0);
   assert.equal(cart.data.quoteError, '请先加载并检查购物车商品');
+});
+
+test('我的订单：仅显示本人订单，支持分页、状态筛选和订单进度', async () => {
+  const base = fixture();
+  const input = { deliveryType: 'pickup', items: [{ productId: 'bread', quantity: 1 }] };
+  for (let i = 0; i < 11; i++) await base.client.orders.create({ ...input, requestId: 'customer-order-' + i });
+  base.switchSubject('other-demo');
+  await base.client.orders.create({ ...input, requestId: 'other-order-1' });
+  base.switchSubject('buyer-demo');
+  const page = base.loadPage('pages/orders/orders');
+  await page.onShow();
+  assert.equal(page.data.orderRows.length, 10);
+  await page.loadMoreOrders();
+  assert.equal(page.data.orderRows.length, 11);
+  const order = page.data.orderRows[0];
+  assert.equal(order.total, '12.50');
+  await page.selectTimeline(click(order.id));
+  assert.equal(page.data.events[0].label, '待支付');
+  await page.changeFilter({ detail: { value: '2' } });
+  assert.equal(page.data.orderRows.length, 0);
+  await page.changeFilter({ detail: { value: '1' } });
+  assert.equal(page.data.orderRows.length, 10);
+  base.switchSubject('other-demo');
+  await page.loadMoreOrders();
+  assert.equal(page.data.orderRows.length, 0);
+  assert.ok(page.data.error);
+  assert.equal(base.cloudReads(), 0);
 });
 
 test('原微信页面接入：配置为空时保留旧页面，未强制启用新后端', () => {
