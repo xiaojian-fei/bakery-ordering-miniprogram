@@ -1,0 +1,22 @@
+<view class="shop-settings">
+  <button size="mini" bindtap="loadShop" disabled="{{busy || loading}}">重新读取配置</button>
+  <view wx:if="{{loading}}">正在加载…</view>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
+  <view wx:if="{{notice}}">{{notice}}</view>
+  <button wx:if="{{pending}}" bindtap="retryShop" disabled="{{busy}}">重试原保存</button>
+  <block wx:if="{{form}}">
+    <view wx:for="{{textFields}}" wx:key="key">
+      <view>{{item.label}}</view>
+      <input maxlength="{{item.max}}" value="{{form[item.key]}}" data-key="{{item.key}}" bindinput="editShopField" disabled="{{busy || pending}}" />
+    </view>
+    <view>轮播图片地址，每行一个</view>
+    <textarea value="{{form.banners}}" maxlength="8008" data-key="banners" bindinput="editShopField" disabled="{{busy || pending}}" />
+    <view>指定运费地区，每行一个省份或直辖市</view>
+    <textarea value="{{form.provinces}}" maxlength="930" data-key="provinces" bindinput="editShopField" disabled="{{busy || pending}}" />
+    <view wx:for="{{moneyFields}}" wx:key="key">
+      <view>{{item.label}}（元）</view>
+      <input type="digit" value="{{form[item.key]}}" data-key="{{item.key}}" bindinput="editShopField" disabled="{{busy || pending}}" />
+    </view>
+    <button type="primary" bindtap="saveShop" disabled="{{busy || pending}}" loading="{{busy}}">保存</button>
+  </block>
+</view>

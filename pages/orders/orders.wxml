@@ -27,6 +27,8 @@
     <view class="order-info"><text>{{item.delivery}}</text><text>{{item.time}}</text></view>
     <view wx:if="{{item.address}}" class="order-address">{{item.address}}</view>
     <view wx:if="{{item.trackingNo}}" class="order-remark">{{item.carrier}} · 运单号 {{item.trackingNo}}</view>
+    <view wx:if="{{item.refunded}}" class="order-remark">已记录整单模拟退款</view>
+    <view wx:if="{{item.rejectionReason}}" class="order-remark">商家拒单原因：{{item.rejectionReason}}</view>
     <view wx:if="{{item.remark}}" class="order-remark">备注：{{item.remark}}</view>
     <view class="order-items">
       <view wx:for="{{item.items}}" wx:for-item="line" wx:key="id" class="order-item">

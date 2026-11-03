@@ -20,7 +20,7 @@
   <view class="shop-info-card">
     <view class="shop-title">
       <text class="shop-icon">🏪</text>
-      <text>店铺信息</text>
+      <text>{{shopInfo.name || '店铺信息'}}</text>
       <!-- 审核期间隐藏管理按钮 -->
        <text class="admin-btn" bindtap="goToAdmin">🔧 管理</text> 
     </view>

@@ -7,7 +7,7 @@ const authLost = error => ['UNAUTHENTICATED', 'FORBIDDEN', 'SESSION_CHANGED', 'A
 const loginPath = '/pages/admin-login/admin-login';
 const actions = {
   accept: '确认接单', ship: '确认发货', readyForPickup: '标记待自取',
-  complete: '确认完成'
+  complete: '确认完成', reject: '拒单并模拟退款'
 };
 const queues = ['', 'PENDING_ACCEPTANCE', 'ACCEPTED', 'SHIPPING', 'READY_FOR_PICKUP', 'COMPLETED'];
 
@@ -49,14 +49,16 @@ function staffRow(order) {
     if (order.status === 'ACCEPTED') action = order.deliveryType === 'pickup' ? 'readyForPickup' : 'ship';
     if (order.status === 'SHIPPING' || order.status === 'READY_FOR_PICKUP') action = 'complete';
   }
-  return { ...orderView(order), action, actionLabel: actions[action] || '', needsCode: order.status === 'READY_FOR_PICKUP' };
+  return { ...orderView(order), action, actionLabel: actions[action] || '', needsCode: order.status === 'READY_FOR_PICKUP',
+    canReject: action === 'accept' };
 }
 
 function createStaffOrdersPage({ runtime, wx }) {
   let pending = null, writing = false;
   const client = runtime.client;
-  const confirm = title => new Promise((resolve, reject) => wx.showModal({
-    title, content: '请核对订单和履约信息后确认。', success: result => resolve(result.confirm === true), fail: reject
+  const confirm = action => new Promise((resolve, reject) => wx.showModal({
+    title: actions[action], content: action === 'reject' ? '确认后将拒单并记录整单模拟退款。' : '请核对订单和履约信息后确认。',
+    success: result => resolve(result.confirm === true), fail: reject
   }));
   async function authorized() {
     await runtime.assertIdentity();
@@ -66,7 +68,7 @@ function createStaffOrdersPage({ runtime, wx }) {
     data: { unifiedMode: true, rows: [], cursor: null, filter: 0,
       filters: ['全部订单', '待接单', '已接单', '配送中', '待自取', '已完成'],
       loading: false, busy: false, error: '', notice: '', loginRequired: false, pending: false, owner: false,
-      form: null, carrier: '', trackingNo: '', pickupCode: '' },
+      form: null, carrier: '', trackingNo: '', pickupCode: '', rejectionReason: '' },
     onShow() {
       this._visit = {};
       this.setData({ busy: writing, notice: '', pending: Boolean(pending), owner: client.getSession()?.role === 'owner' });
@@ -79,7 +81,7 @@ function createStaffOrdersPage({ runtime, wx }) {
       this.setData({ rows: [], cursor: null });
     },
     onUnload() { this.onHide(); pending = null; },
-    resetForm() { this.setData({ form: null, carrier: '', trackingNo: '', pickupCode: '' }); },
+    resetForm() { this.setData({ form: null, carrier: '', trackingNo: '', pickupCode: '', rejectionReason: '' }); },
     staffError(error) {
       if (authLost(error)) {
         client.clearSession();
@@ -98,6 +100,9 @@ function createStaffOrdersPage({ runtime, wx }) {
     },
     openOwnerCatalog() {
       if (!writing && client.getSession()?.role === 'owner') wx.navigateTo({ url: '/pages/admin/catalog/catalog' });
+    },
+    openOwnerShop() {
+      if (!writing && client.getSession()?.role === 'owner') wx.navigateTo({ url: '/pages/admin/shop/shop' });
     },
     async logoutStaff() {
       if (writing) return;
@@ -152,14 +157,25 @@ function createStaffOrdersPage({ runtime, wx }) {
       this.resetForm();
       this.setData({ form: row, error: '', notice: '' });
     },
+    openRejection(event) {
+      const row = this.data.rows.find(item => item.id === event.currentTarget.dataset.id);
+      if (writing || pending || !row?.canReject || client.getSession()?.role !== 'owner') return;
+      this.resetForm();
+      this.setData({ form: { ...row, action: 'reject' }, error: '', notice: '' });
+    },
     enterCarrier(event) { this.setData({ carrier: event.detail.value }); },
     enterTracking(event) { this.setData({ trackingNo: event.detail.value }); },
     enterPickupCode(event) { this.setData({ pickupCode: event.detail.value }); },
+    enterRejectionReason(event) { this.setData({ rejectionReason: event.detail.value }); },
     submitFulfillment() {
       const form = this.data.form;
       if (!form || pending || writing) return;
       const carrier = this.data.carrier.trim(), trackingNo = this.data.trackingNo.trim();
       const pickupCode = this.data.pickupCode.trim().toUpperCase();
+      const reason = this.data.rejectionReason.trim();
+      if (form.action === 'reject' && (!reason || reason.length > 200)) {
+        this.setData({ error: '请输入 1 至 200 字的拒单原因。' }); return;
+      }
       if (form.action === 'ship' && (!carrier || carrier.length > 60 || !/^[A-Za-z0-9_-]{4,80}$/.test(trackingNo))) {
         this.setData({ error: '请填写承运方及 4 至 80 位有效运单号。' }); return;
       }
@@ -167,7 +183,8 @@ function createStaffOrdersPage({ runtime, wx }) {
         this.setData({ error: '请输入顾客出示的 12 位自取码。' }); return;
       }
       return this.writeFulfillment({ action: form.action, payload: { orderId: form.id, expectedVersion: form.version,
-        ...(form.action === 'ship' ? { carrier, trackingNo } : {}), ...(form.needsCode ? { pickupCode } : {}) } });
+        ...(form.action === 'ship' ? { carrier, trackingNo } : {}), ...(form.needsCode ? { pickupCode } : {}),
+        ...(form.action === 'reject' ? { reason } : {}) } });
     },
     retryFulfillment() { if (pending) return this.writeFulfillment(pending, true); },
     async writeFulfillment(operation, retry = false) {
@@ -180,18 +197,19 @@ function createStaffOrdersPage({ runtime, wx }) {
         await authorized();
         if (!current()) return;
         if (!retry) {
-          if (!await confirm(actions[operation.action]) || !current()) return;
+          if (!await confirm(operation.action) || !current()) return;
           await authorized();
           if (!current()) return;
           pending = { action: operation.action,
             payload: { ...operation.payload, requestId: runtime.newCheckoutRequestId() } };
         }
-        await client.fulfillment[pending.action](pending.payload);
+        if (pending.action === 'reject') await client.orders.reject(pending.payload);
+        else await client.fulfillment[pending.action](pending.payload);
         pending = null;
         await authorized();
         if (current()) {
           await this.refreshStaffOrders();
-          if (current() && !this.data.error) this.setData({ notice: '订单状态已更新。' });
+          if (current() && !this.data.error) this.setData({ notice: operation.action === 'reject' ? '已拒单并记录模拟退款。' : '订单状态已更新。' });
         }
       } catch (error) {
         if (!error.uncertain && !authLost(error)) pending = null;

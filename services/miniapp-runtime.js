@@ -6,7 +6,7 @@ const { createCheckoutRecovery } = require('./checkout-recovery');
 const routes = Object.freeze([
   '/pages/index/index', '/pages/detail/detail', '/pages/cart/cart', '/pages/address/address',
   '/pages/add-address/add-address', '/pages/orders/orders', '/pages/admin-login/admin-login', '/pages/admin/admin',
-  '/pages/admin/after-sales/after-sales', '/pages/admin/statistics/statistics', '/pages/admin/catalog/catalog'
+  '/pages/admin/after-sales/after-sales', '/pages/admin/statistics/statistics', '/pages/admin/catalog/catalog', '/pages/admin/shop/shop'
 ]);
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);
 

@@ -108,7 +108,7 @@ function createCatalogPage(dependencies) {
         await runtime.assertIdentity();
         const shop = await runtime.client.shop.get();
         if (!this._active || this._shopEpoch !== epoch) return;
-        this.setData({ shopInfo: { address: shop.address, wechatList: shop.wechat ? [shop.wechat] : [],
+        this.setData({ shopInfo: { name: shop.name, address: shop.address, wechatList: shop.wechat ? [shop.wechat] : [],
           phoneList: shop.phone ? [shop.phone] : [], deliveryTimeList: shop.deliveryNote ? [shop.deliveryNote] : [] }, banners: shop.banners });
       } catch (_) { /* 商品区仍可独立加载；不显示原始接口异常。 */ }
     },

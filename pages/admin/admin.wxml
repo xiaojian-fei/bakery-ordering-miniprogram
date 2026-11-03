@@ -9,6 +9,7 @@
     <button wx:if="{{owner}}" size="mini" bindtap="openOwnerSales" disabled="{{busy}}">售后管理</button>
     <button wx:if="{{owner}}" size="mini" bindtap="openOwnerStatistics" disabled="{{busy}}">经营统计</button>
     <button wx:if="{{owner}}" size="mini" bindtap="openOwnerCatalog" disabled="{{busy}}">商品与库存</button>
+    <button wx:if="{{owner}}" size="mini" bindtap="openOwnerShop" disabled="{{busy}}">门店与运费</button>
     <picker range="{{filters}}" value="{{filter}}" bindchange="chooseStaffFilter" disabled="{{busy}}">
       <view>订单状态：{{filters[filter]}} ▾</view>
     </picker>
@@ -24,12 +25,14 @@
       <view wx:for="{{item.items}}" wx:for-item="line" wx:key="id">{{line.name}} × {{line.quantity}}</view>
       <view wx:if="{{item.trackingNo}}">{{item.carrier}} · 运单号 {{item.trackingNo}}</view>
       <button wx:if="{{item.action}}" size="mini" data-id="{{item.id}}" bindtap="openFulfillment" disabled="{{busy || pending}}">{{item.actionLabel}}</button>
+      <button wx:if="{{owner && item.canReject}}" size="mini" data-id="{{item.id}}" bindtap="openRejection" disabled="{{busy || pending}}">拒单退款</button>
       <view wx:if="{{form && form.id === item.id}}">
         <block wx:if="{{form.action === 'ship'}}">
           <input placeholder="承运方" value="{{carrier}}" maxlength="60" bindinput="enterCarrier" disabled="{{busy}}" />
           <input placeholder="运单号" value="{{trackingNo}}" maxlength="80" bindinput="enterTracking" disabled="{{busy}}" />
         </block>
         <input wx:if="{{form.needsCode}}" placeholder="顾客出示的自取码" value="{{pickupCode}}" maxlength="12" bindinput="enterPickupCode" disabled="{{busy}}" />
+        <textarea wx:if="{{form.action === 'reject'}}" placeholder="拒单原因" value="{{rejectionReason}}" maxlength="200" bindinput="enterRejectionReason" disabled="{{busy}}" />
         <button size="mini" type="primary" bindtap="submitFulfillment" disabled="{{busy || pending}}" loading="{{busy}}">提交</button>
         <button size="mini" bindtap="resetForm" disabled="{{busy}}">关闭</button>
       </view>

@@ -18,6 +18,7 @@ function orderView(order) {
   return { ...orderActions(order), id: order._id, status: statusLabel(order.status), time: date(order.createdAt),
     delivery: order.deliveryType === 'pickup' ? '自取' : '配送', remark: order.remark || '',
     carrier: order.fulfillment?.carrier || '', trackingNo: order.fulfillment?.trackingNo || '',
+    refunded: order.paymentStatus === 'REFUNDED', rejectionReason: order.rejectionReason || '',
     address: address ? [address.name, address.phone, address.province + address.city + address.district + address.detail].join(' ') : '',
     items: order.items.map(row => ({ id: row.productId, name: row.name, quantity: row.quantity, total: money(row.lineTotalCents) })),
     subtotal: money(order.amounts.subtotalCents), shipping: money(order.amounts.shippingCents), total: money(order.amounts.totalCents) };

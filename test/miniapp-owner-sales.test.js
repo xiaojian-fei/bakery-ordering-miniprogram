@@ -151,3 +151,25 @@ test('经营统计：按北京时间分段，员工无权读取，店主查看�
   assert.equal(staffPage.data.summary, null);
   assert.ok(staffPage.data.error);
 });
+
+test('门店与运费：店主保存后首页读取新资料，配送报价使用新运费', async () => {
+  const { buyer, owner, choose } = await fixture();
+  const ui = miniappHarness(owner), page = ui.loadPage('pages/admin/shop/shop');
+  const field = (key, value) => page.editShopField({ ...event({ key }), detail: { value } });
+  await page.onShow();
+  field('name', '测试门店');
+  field('address', '演示街 1 号');
+  field('provinces', '内蒙古');
+  field('northernFeeCents', '6.50');
+  await choose(() => page.saveShop(), true, ui);
+  assert.equal(page.data.version, 1);
+  const home = miniappHarness(buyer).loadPage('pages/index/index');
+  await home.onShow();
+  assert.equal(home.data.shopInfo.name, '测试门店');
+  assert.equal(home.data.shopInfo.address, '演示街 1 号');
+  await buyer.client.addresses.save(require('./support/shop-fixture').addressInput());
+  const quote = await buyer.client.orders.quote({ deliveryType: 'delivery', addressId: 'home',
+    items: [{ productId: 'bread', quantity: 1 }] });
+  assert.equal(quote.shippingCents, 650);
+  assert.equal(quote.totalCents, 1900);
+});

@@ -12,6 +12,7 @@
     "pages/admin/after-sales/after-sales",
     "pages/admin/statistics/statistics",
     "pages/admin/catalog/catalog",
+    "pages/admin/shop/shop",
     "pages/admin/product-edit/product-edit",
     "pages/pay/pay"
   ],

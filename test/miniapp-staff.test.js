@@ -9,7 +9,7 @@ const { addressInput } = require('./support/shop-fixture');
 const { miniappHarness } = require('./support/miniapp-harness');
 
 const input = value => ({ detail: { value } });
-async function fixture(deliveryType = 'pickup') {
+async function fixture(deliveryType = 'pickup', staffId = 'staff-demo') {
   const base = await authFixture();
   const app = createApplication({ repository: base.repository, clock: base.clock,
     resolveIdentity: async openid => ({ openid }) });
@@ -22,7 +22,7 @@ async function fixture(deliveryType = 'pickup') {
       if (drop === request.action) { drop = ''; throw new Error('lost response'); }
       return result;
     } }) });
-  const staff = runtime('staff-demo'), buyer = runtime('buyer-demo');
+  const staff = runtime(staffId), buyer = runtime('buyer-demo');
   if (deliveryType === 'delivery') await buyer.client.addresses.save(addressInput());
   const order = await buyer.client.orders.create({ requestId: 'staff-page-order', deliveryType,
     ...(deliveryType === 'delivery' ? { addressId: 'home' } : {}), items: [{ productId: 'bread', quantity: 1 }] });
@@ -124,4 +124,18 @@ test('商家履约：会话失效后刷新清除商家订单并要求重新登�
   await admin.refreshStaffOrders();
   assert.equal(admin.data.rows.length, 0);
   assert.equal(admin.data.loginRequired, true);
+});
+
+test('商家拒单：店主填写原因并退款，顾客可查看退款和拒单原因', async () => {
+  const { admin, customer, signIn, rowEvent, submit } = await fixture('pickup', 'owner-demo');
+  await signIn();
+  admin.openRejection(rowEvent);
+  await admin.submitFulfillment();
+  assert.match(admin.data.error, /拒单原因/);
+  admin.enterRejectionReason(input('门店临时停业'));
+  await submit();
+  await customer.onShow();
+  assert.equal(customer.data.orderRows[0].status, '已取消');
+  assert.equal(customer.data.orderRows[0].refunded, true);
+  assert.equal(customer.data.orderRows[0].rejectionReason, '门店临时停业');
 });
