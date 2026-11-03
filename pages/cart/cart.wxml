@@ -91,6 +91,7 @@
     <view>订单金额：¥{{placedOrder.total}}</view>
     <view>当前状态：{{placedOrder.status === 'PENDING_PAYMENT' ? '待支付' : placedOrder.status}}</view>
     <view class="quote-note">支付入口将在后续接入。购物车保留原商品。</view>
+    <button bindtap="finishCheckout" disabled="{{checkoutBusy}}">结束本次结算</button>
   </view>
   <view wx:if="{{checkoutQuote}}" class="quote-preview">
     <view class="quote-title">结算报价预览</view>

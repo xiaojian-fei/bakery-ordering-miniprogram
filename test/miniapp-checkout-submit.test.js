@@ -40,6 +40,37 @@ async function fixture() {
 const creates = base => base.requests.filter(row => row.action === 'orders.create');
 const record = base => [...base.storage.values()][0];
 const orders = base => Object.values(base.repository.snapshot().orders || {});
+
+test('结束结算：取消时保留记录，确认后可以重新报价并创建下一笔订单', async () => {
+  const base = await fixture();
+  await base.page.goToOrder();
+  await base.page.submitQuotedOrder();
+  const first = base.page.data.placedOrder.id;
+  for (const confirm of [false, true]) {
+    const finishing = base.page.finishCheckout();
+    base.ui.events.findLast(event => event.name === 'showModal').options.success({ confirm });
+    await finishing;
+    assert.equal(base.storage.size, confirm ? 0 : 1);
+  }
+  await base.page.goToOrder();
+  await base.page.submitQuotedOrder();
+  assert.equal(orders(base).length, 2);
+  assert.notEqual(base.page.data.placedOrder.id, first);
+  assert.equal(orders(base).find(order => order._id === first).status, 'PENDING_PAYMENT');
+});
+
+test('结束结算：确认框打开期间变成未知状态的记录不能被清除', async () => {
+  const base = await fixture();
+  await base.page.goToOrder();
+  await base.page.submitQuotedOrder();
+  const finishing = base.page.finishCheckout();
+  record(base).state = 'UNCERTAIN';
+  base.ui.events.findLast(event => event.name === 'showModal').options.success({ confirm: true });
+  await finishing;
+  assert.equal(record(base).state, 'UNCERTAIN');
+  assert.ok(base.page.data.checkoutError);
+  assert.equal(creates(base).length, 1);
+});
 async function price(base, priceCents) {
   await base.repository.transaction(async tx => {
     const product = await tx.get('products', 'bread'); await tx.set('products', 'bread', { ...product, priceCents });

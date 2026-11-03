@@ -53,6 +53,32 @@ function createCheckoutSubmission({ runtime, wx }) {
       }
     },
     pauseCheckout() { this._checkoutEpoch = (this._checkoutEpoch || 0) + 1; },
+    async finishCheckout() {
+      const order = this.data.placedOrder;
+      if (!this._active || this._checkoutBusy || !order || this.data.checkoutState !== 'CONFIRMED') return;
+      const epoch = this._checkoutEpoch;
+      const current = () => this._active && this._checkoutEpoch === epoch;
+      this._checkoutBusy = true;
+      this.setData({ checkoutBusy: true, checkoutError: '' });
+      try {
+        const confirmed = await new Promise((resolve, reject) => wx.showModal({
+          title: '结束本次结算',
+          content: '已创建的订单和购物车商品都会保留。确认后可重新报价并创建下一笔订单。',
+          success: result => resolve(result.confirm),
+          fail: reject
+        }));
+        if (!confirmed || !current()) return;
+        const store = await recovery();
+        if (!current()) return;
+        await store.discard({ confirmedOrderId: order.id });
+        if (this._active) await this.syncCheckout();
+      } catch (error) {
+        if (current()) this.setData({ checkoutError: message(error) });
+      } finally {
+        this._checkoutBusy = false;
+        if (this._active) this.setData({ checkoutBusy: false });
+      }
+    },
     async submitQuotedOrder() {
       if (!this._active || this._checkoutBusy || !this.data.checkoutReady || this.data.loading
         || this.data.cartBusy || this.data.addressLoading || !this._quoteSelection) return;

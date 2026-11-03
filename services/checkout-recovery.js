@@ -134,13 +134,16 @@ function createCheckoutRecovery({ client, storage, subjectId, namespace = 'baker
       return record ? { state: record.state, requestId: record.payload.requestId,
         orderId: record.orderId, totalCents: record.payload.expectedTotalCents } : null;
     }),
-    discard: ({ acknowledgeUncertain = false } = {}) => exclusive(async () => {
+    discard: ({ acknowledgeUncertain = false, confirmedOrderId } = {}) => exclusive(async () => {
       await sameSubject();
       let record;
       try { record = await read(); } catch (error) {
         if (error.code !== 'INVALID_CHECKOUT_DRAFT' || acknowledgeUncertain !== true) throw error;
       }
       if (unresolved(record) && acknowledgeUncertain !== true) throw new TradeApiError('CHECKOUT_RECOVERY_REQUIRED');
+      if (confirmedOrderId !== undefined && (record?.state !== 'CONFIRMED' || record.orderId !== confirmedOrderId)) {
+        throw new TradeApiError('STALE_CHECKOUT_DRAFT');
+      }
       try { await storage.remove(key); } catch (_) { throw new TradeApiError('CHECKOUT_STORAGE_ERROR'); }
       return { discarded: true, cancelledOrder: false };
     })
