@@ -65,11 +65,11 @@ function createStaffOrdersPage({ runtime, wx }) {
   return {
     data: { unifiedMode: true, rows: [], cursor: null, filter: 0,
       filters: ['全部订单', '待接单', '已接单', '配送中', '待自取', '已完成'],
-      loading: false, busy: false, error: '', notice: '', loginRequired: false, pending: false,
+      loading: false, busy: false, error: '', notice: '', loginRequired: false, pending: false, owner: false,
       form: null, carrier: '', trackingNo: '', pickupCode: '' },
     onShow() {
       this._visit = {};
-      this.setData({ busy: writing, notice: '', pending: Boolean(pending) });
+      this.setData({ busy: writing, notice: '', pending: Boolean(pending), owner: client.getSession()?.role === 'owner' });
       return this.refreshStaffOrders();
     },
     onHide() {
@@ -90,6 +90,15 @@ function createStaffOrdersPage({ runtime, wx }) {
       this.setData({ error: errorText(error) });
     },
     openStaffLogin() { wx.navigateTo({ url: loginPath }); },
+    openOwnerSales() {
+      if (!writing && client.getSession()?.role === 'owner') wx.navigateTo({ url: '/pages/admin/after-sales/after-sales' });
+    },
+    openOwnerStatistics() {
+      if (!writing && client.getSession()?.role === 'owner') wx.navigateTo({ url: '/pages/admin/statistics/statistics' });
+    },
+    openOwnerCatalog() {
+      if (!writing && client.getSession()?.role === 'owner') wx.navigateTo({ url: '/pages/admin/catalog/catalog' });
+    },
     async logoutStaff() {
       if (writing) return;
       this.onHide();

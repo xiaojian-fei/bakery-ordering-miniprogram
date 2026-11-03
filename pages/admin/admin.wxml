@@ -6,6 +6,9 @@
   <button wx:if="{{loginRequired}}" bindtap="openStaffLogin">员工登录</button>
   <block wx:else>
     <button size="mini" bindtap="logoutStaff" disabled="{{busy}}">退出登录</button>
+    <button wx:if="{{owner}}" size="mini" bindtap="openOwnerSales" disabled="{{busy}}">售后管理</button>
+    <button wx:if="{{owner}}" size="mini" bindtap="openOwnerStatistics" disabled="{{busy}}">经营统计</button>
+    <button wx:if="{{owner}}" size="mini" bindtap="openOwnerCatalog" disabled="{{busy}}">商品与库存</button>
     <picker range="{{filters}}" value="{{filter}}" bindchange="chooseStaffFilter" disabled="{{busy}}">
       <view>订单状态：{{filters[filter]}} ▾</view>
     </picker>

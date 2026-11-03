@@ -1,0 +1,20 @@
+<view class="statistics">
+  <picker range="{{periods}}" value="{{period}}" bindchange="changePeriod"><view>统计区间：{{periods[period]}} ▾</view></picker>
+  <button size="mini" bindtap="loadStatistics" disabled="{{loading}}">刷新统计</button>
+  <view wx:if="{{loading}}">正在加载…</view>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
+  <block wx:if="{{summary}}">
+    <view class="statistics-card">
+      <view>{{summary.start}} 至 {{summary.end}}（北京时间）</view>
+      <view>模拟收款 ¥{{summary.gross}} · {{summary.paid}} 笔</view>
+      <view>模拟退款 ¥{{summary.refunds}} · {{summary.refunded}} 笔</view>
+      <view>模拟净额 ¥{{summary.net}}</view>
+    </view>
+    <view class="statistics-card">
+      <view>有效完成订单 {{summary.completed}} 笔</view>
+      <view>销量按完成时间统计，仅包含当前已完成且未退款的订单。</view>
+      <view wx:if="{{!summary.products.length}}">本期暂无有效销量</view>
+      <view wx:for="{{summary.products}}" wx:key="productId">{{item.name}} · {{item.quantity}} 件</view>
+    </view>
+  </block>
+</view>

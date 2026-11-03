@@ -1,0 +1,25 @@
+<view class="owner-sales">
+  <picker range="{{filters}}" value="{{filter}}" bindchange="selectSaleFilter" disabled="{{busy}}">
+    <view>筛选：{{filters[filter]}} ▾</view>
+  </picker>
+  <button size="mini" bindtap="refreshSales" disabled="{{loading || busy}}">刷新售后</button>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
+  <view wx:if="{{notice}}">{{notice}}</view>
+  <button wx:if="{{pending}}" bindtap="retrySaleWrite" disabled="{{busy}}">重试原操作</button>
+  <view wx:if="{{loading}}">正在加载…</view>
+  <view wx:if="{{!loading && !error && !rows.length}}">暂无售后记录</view>
+  <view wx:for="{{rows}}" wx:key="id" class="sale-card">
+    <view>{{item.statusLabel}} · 订单 {{item.orderId}}</view>
+    <view>申请原因：{{item.reason}}</view>
+    <view wx:if="{{item.reviewReason}}">审核说明：{{item.reviewReason}}</view>
+    <button wx:if="{{item.status === 'REQUESTED'}}" size="mini" bindtap="openReview" data-id="{{item.id}}" disabled="{{busy || pending}}">审核</button>
+    <button wx:if="{{item.status === 'APPROVED'}}" size="mini" bindtap="refundSale" data-id="{{item.id}}" disabled="{{busy || pending}}">模拟退款</button>
+    <view wx:if="{{form && form.id === item.id}}">
+      <textarea placeholder="填写审核说明" value="{{reason}}" maxlength="200" bindinput="enterReviewReason" disabled="{{busy}}" />
+      <button size="mini" bindtap="submitReview" data-decision="approve" disabled="{{busy || pending}}">通过</button>
+      <button size="mini" bindtap="submitReview" data-decision="reject" disabled="{{busy || pending}}">驳回</button>
+      <button size="mini" bindtap="closeReview" disabled="{{busy}}">关闭</button>
+    </view>
+  </view>
+  <button wx:if="{{cursor}}" bindtap="moreSales" disabled="{{busy || loading}}">加载更多</button>
+</view>

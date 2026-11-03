@@ -9,6 +9,9 @@
     "pages/orders/orders",
     "pages/admin-login/admin-login",
     "pages/admin/admin",
+    "pages/admin/after-sales/after-sales",
+    "pages/admin/statistics/statistics",
+    "pages/admin/catalog/catalog",
     "pages/admin/product-edit/product-edit",
     "pages/pay/pay"
   ],
