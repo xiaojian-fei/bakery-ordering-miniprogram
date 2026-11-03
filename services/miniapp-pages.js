@@ -47,7 +47,7 @@ function base({ runtime, wx, app }) {
         if (this._active) this.setData({ cartBusy: false, cartWritePending: runtime.hasPendingCartWrite() });
       }
     },
-    goToAdmin() { wx.showToast({ title: '管理页尚未接入新接口', icon: 'none' }); },
+    goToAdmin() { wx.navigateTo({ url: runtime.client.getSession() ? '/pages/admin/admin' : '/pages/admin-login/admin-login' }); },
     goToOrder() { wx.showToast({ title: '结算页尚未接入新接口', icon: 'none' }); },
     openAddresses() { wx.navigateTo({ url: '/pages/address/address' }); },
     makePhoneCall(event) {

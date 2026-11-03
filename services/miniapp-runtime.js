@@ -3,7 +3,7 @@ const { TradeApiError, copyData } = require('./trade-errors');
 const { createMiniappAddressEditor } = require('./miniapp-address-editor');
 const { createCheckoutRecovery } = require('./checkout-recovery');
 
-const routes = Object.freeze(['/pages/index/index', '/pages/detail/detail', '/pages/cart/cart', '/pages/address/address', '/pages/add-address/add-address', '/pages/orders/orders']);
+const routes = Object.freeze(['/pages/index/index', '/pages/detail/detail', '/pages/cart/cart', '/pages/address/address', '/pages/add-address/add-address', '/pages/orders/orders', '/pages/admin-login/admin-login', '/pages/admin/admin']);
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);
 
 // 平台无关的页面运行时。client使用可信send；requestId由调用方提供，不能在失败重试时重建。

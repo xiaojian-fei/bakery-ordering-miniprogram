@@ -1,5 +1,40 @@
 <!-- pages/admin/admin.wxml -->
-<view class="container">
+<view wx:if="{{unifiedMode}}" class="container">
+  <view class="title">商家订单履约</view>
+  <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
+  <view wx:if="{{notice}}">{{notice}}</view>
+  <button wx:if="{{loginRequired}}" bindtap="openStaffLogin">员工登录</button>
+  <block wx:else>
+    <button size="mini" bindtap="logoutStaff" disabled="{{busy}}">退出登录</button>
+    <picker range="{{filters}}" value="{{filter}}" bindchange="chooseStaffFilter" disabled="{{busy}}">
+      <view>订单状态：{{filters[filter]}} ▾</view>
+    </picker>
+    <button size="mini" bindtap="refreshStaffOrders" disabled="{{loading || busy}}">刷新订单</button>
+    <button wx:if="{{pending}}" bindtap="retryFulfillment" disabled="{{busy}}">重试原履约操作</button>
+    <view wx:if="{{loading}}">正在加载…</view>
+    <view wx:if="{{!loading && !error && !rows.length}}">暂无订单</view>
+    <view wx:for="{{rows}}" wx:key="id" class="order-card">
+      <view>{{item.id}} · {{item.status}}</view>
+      <view>{{item.time}} · {{item.delivery}} · 合计 ¥{{item.total}}</view>
+      <view wx:if="{{item.address}}">{{item.address}}</view>
+      <view wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+      <view wx:for="{{item.items}}" wx:for-item="line" wx:key="id">{{line.name}} × {{line.quantity}}</view>
+      <view wx:if="{{item.trackingNo}}">{{item.carrier}} · 运单号 {{item.trackingNo}}</view>
+      <button wx:if="{{item.action}}" size="mini" data-id="{{item.id}}" bindtap="openFulfillment" disabled="{{busy || pending}}">{{item.actionLabel}}</button>
+      <view wx:if="{{form && form.id === item.id}}">
+        <block wx:if="{{form.action === 'ship'}}">
+          <input placeholder="承运方" value="{{carrier}}" maxlength="60" bindinput="enterCarrier" disabled="{{busy}}" />
+          <input placeholder="运单号" value="{{trackingNo}}" maxlength="80" bindinput="enterTracking" disabled="{{busy}}" />
+        </block>
+        <input wx:if="{{form.needsCode}}" placeholder="顾客出示的自取码" value="{{pickupCode}}" maxlength="12" bindinput="enterPickupCode" disabled="{{busy}}" />
+        <button size="mini" type="primary" bindtap="submitFulfillment" disabled="{{busy || pending}}" loading="{{busy}}">提交</button>
+        <button size="mini" bindtap="resetForm" disabled="{{busy}}">关闭</button>
+      </view>
+    </view>
+    <button wx:if="{{cursor}}" bindtap="moreStaffOrders" disabled="{{loading || busy}}">加载更多</button>
+  </block>
+</view>
+<view wx:else class="container">
   <view class="logout-btn" bindtap="logout">退出</view>
 
   <view class="stats-card">

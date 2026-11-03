@@ -26,6 +26,7 @@
     <view class="order-header"><text>{{item.id}}</text><text class="order-status">{{item.status}}</text></view>
     <view class="order-info"><text>{{item.delivery}}</text><text>{{item.time}}</text></view>
     <view wx:if="{{item.address}}" class="order-address">{{item.address}}</view>
+    <view wx:if="{{item.trackingNo}}" class="order-remark">{{item.carrier}} · 运单号 {{item.trackingNo}}</view>
     <view wx:if="{{item.remark}}" class="order-remark">备注：{{item.remark}}</view>
     <view class="order-items">
       <view wx:for="{{item.items}}" wx:for-item="line" wx:key="id" class="order-item">
