@@ -7,9 +7,10 @@ const { createTradeClient } = require('../services/trade-client');
 const { MemoryRepository } = require('../test/support/memory-repository');
 
 // 仅本地演示夹具：角色可切换、员工测试口令自动填充，不是生产身份适配器。
-async function createLocalDemo() {
-  let now = Date.now();
-  const clock = () => now;
+async function createLocalDemo({ liveClock = false } = {}) {
+  const startedAt = Date.now();
+  let offset = 0;
+  const clock = () => (liveClock ? Date.now() : startedAt) + offset;
   const password = randomBytes(24).toString('hex');
   const repository = new MemoryRepository({ products: {
     bread: { _id: 'bread', name: '莓果司康', desc: '虚构演示商品', category: '司康', priceCents: 1250,
@@ -36,6 +37,6 @@ async function createLocalDemo() {
     return value;
   }
   return { repository, application, clock, handle, client,
-    advance: milliseconds => { now += milliseconds; return now; } };
+    advance: milliseconds => { offset += milliseconds; return clock(); } };
 }
 module.exports = { createLocalDemo };
