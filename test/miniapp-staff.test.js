@@ -15,7 +15,7 @@ async function fixture(deliveryType = 'pickup', staffId = 'staff-demo') {
     resolveIdentity: async openid => ({ openid }) });
   let seq = 0, drop = '';
   const requests = [];
-  const runtime = subjectId => createMiniappRuntime({ subjectId, requestId: () => 'staff-page-' + (++seq),
+  const runtime = (subjectId, checkoutNamespace) => createMiniappRuntime({ subjectId, checkoutNamespace, requestId: () => 'staff-page-' + (++seq),
     client: createTradeClient({ clock: base.clock, send: async request => {
       requests.push({ action: request.action, ...(request.action.startsWith('fulfillment.') ? { data: request.data } : {}) });
       const result = await app.handle(request, subjectId);
@@ -48,8 +48,82 @@ async function fixture(deliveryType = 'pickup', staffId = 'staff-demo') {
     await work;
   }
   const rowEvent = { currentTarget: { dataset: { id: order._id } } };
-  return { admin, login, customer, staff, requests, signIn, submit, rowEvent, ui, drop: action => { drop = action; } };
+  return { admin, login, customer, staff, requests, signIn, submit, rowEvent, ui, runtime, drop: action => { drop = action; } };
 }
+
+test('履约恢复：响应丢失后重建运行时不自动写入，登录后重试原请求', async () => {
+  const base = await fixture();
+  await base.signIn();
+  base.admin.openFulfillment(base.rowEvent);
+  base.drop('fulfillment.accept');
+  await base.submit();
+  const nextRuntime = base.runtime('staff-demo');
+  const nextUi = miniappHarness(nextRuntime, { storage: base.ui.storage });
+  const next = nextUi.loadPage('pages/admin/admin');
+  await next.onShow();
+  assert.equal(next.data.loginRequired, true);
+  await nextRuntime.client.staff.login(DEMO_PASSWORD);
+  await next.onShow();
+  assert.equal(next.data.pending, true);
+  assert.equal(next.data.pendingOrderId, base.rowEvent.currentTarget.dataset.id);
+  const before = base.requests.filter(row => row.action === 'fulfillment.accept');
+  assert.equal(before.length, 1);
+  await next.retryFulfillment();
+  const after = base.requests.filter(row => row.action === 'fulfillment.accept');
+  assert.deepEqual(after[1].data, after[0].data);
+  assert.equal(next.data.pending, false);
+  assert.equal(next.data.rows[0].status, '已接单');
+});
+
+test('履约恢复：缓存写入失败阻止接单，损坏记录阻止新意图覆盖', async () => {
+  const base = await fixture();
+  await base.signIn();
+  base.admin.openFulfillment(base.rowEvent);
+  base.ui.wx.setStorageSync = () => { throw new Error('disk full'); };
+  await base.submit();
+  assert.equal(base.requests.some(row => row.action === 'fulfillment.accept'), false);
+  assert.ok(base.admin.data.error);
+  base.ui.storage.set(base.staff.checkoutNamespace + ':fulfillment:staff-demo', { corrupt: true });
+  await base.admin.refreshStaffOrders();
+  assert.equal(base.admin.data.recoveryReady, false);
+  base.admin.openFulfillment(base.rowEvent);
+  assert.equal(base.admin.data.form, null);
+});
+
+test('履约恢复：成功后清理缓存失败仍显示成功，重试不重复变更订单版本', async () => {
+  const base = await fixture();
+  await base.signIn();
+  base.admin.openFulfillment(base.rowEvent);
+  const remove = base.ui.wx.removeStorageSync;
+  base.ui.wx.removeStorageSync = () => { throw new Error('locked'); };
+  await base.submit();
+  assert.match(base.admin.data.notice, /操作已成功/);
+  const version = base.admin.data.rows[0].version;
+  assert.equal(base.admin.data.pending, true);
+  base.ui.wx.removeStorageSync = remove;
+  await base.admin.retryFulfillment();
+  assert.equal(base.admin.data.rows[0].version, version);
+  assert.equal(base.admin.data.pending, false);
+});
+
+test('履约恢复：不同主体与环境只读取自己的恢复记录', async () => {
+  const base = await fixture();
+  await base.signIn();
+  base.admin.openFulfillment(base.rowEvent);
+  base.drop('fulfillment.accept');
+  await base.submit();
+  const owner = base.runtime('owner-demo');
+  await owner.client.staff.login(DEMO_PASSWORD);
+  const other = miniappHarness(owner, { storage: base.ui.storage }).loadPage('pages/admin/admin');
+  await other.onShow();
+  assert.equal(other.data.pending, false);
+  const environment = base.runtime('staff-demo', 'bakery.test.another-environment');
+  await environment.client.staff.login(DEMO_PASSWORD);
+  const isolated = miniappHarness(environment, { storage: base.ui.storage }).loadPage('pages/admin/admin');
+  await isolated.onShow();
+  assert.equal(isolated.data.pending, false);
+  assert.equal(base.ui.storage.size, 1);
+});
 
 test('商家履约：登录前不可看订单，退出后清除列表和会话', async () => {
   const { admin, login, staff, requests, signIn, ui } = await fixture();

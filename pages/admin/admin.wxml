@@ -14,7 +14,9 @@
       <view>订单状态：{{filters[filter]}} ▾</view>
     </picker>
     <button size="mini" bindtap="refreshStaffOrders" disabled="{{loading || busy}}">刷新订单</button>
-    <button wx:if="{{pending}}" bindtap="retryFulfillment" disabled="{{busy}}">重试原履约操作</button>
+    <view wx:if="{{pending}}">待核对订单：{{pendingOrderId}}
+      <button bindtap="retryFulfillment" disabled="{{busy}}">核对并重试原履约操作</button>
+    </view>
     <view wx:if="{{loading}}">正在加载…</view>
     <view wx:if="{{!loading && !error && !rows.length}}">暂无订单</view>
     <view wx:for="{{rows}}" wx:key="id" class="order-card">

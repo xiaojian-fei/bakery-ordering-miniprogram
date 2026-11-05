@@ -1,6 +1,7 @@
 'use strict';
 const { TradeApiError } = require('./trade-errors');
 const { orderView } = require('./miniapp-orders');
+const { createFulfillmentRecovery } = require('./fulfillment-recovery');
 
 const errorText = error => error instanceof TradeApiError ? error.message : '操作失败，请重试';
 const authLost = error => ['UNAUTHENTICATED', 'FORBIDDEN', 'SESSION_CHANGED', 'ACCOUNT_DISABLED'].includes(error?.code);
@@ -55,6 +56,7 @@ function staffRow(order) {
 
 function createStaffOrdersPage({ runtime, wx }) {
   let pending = null, writing = false;
+  const recovery = createFulfillmentRecovery({ runtime, wx });
   const client = runtime.client;
   const confirm = action => new Promise((resolve, reject) => wx.showModal({
     title: actions[action], content: action === 'reject' ? '确认后将拒单并记录整单模拟退款。' : '请核对订单和履约信息后确认。',
@@ -67,11 +69,12 @@ function createStaffOrdersPage({ runtime, wx }) {
   return {
     data: { unifiedMode: true, rows: [], cursor: null, filter: 0,
       filters: ['全部订单', '待接单', '已接单', '配送中', '待自取', '已完成'],
-      loading: false, busy: false, error: '', notice: '', loginRequired: false, pending: false, owner: false,
+      loading: false, busy: false, error: '', notice: '', loginRequired: false, pending: false, owner: false, recoveryReady: false,
+      pendingOrderId: '',
       form: null, carrier: '', trackingNo: '', pickupCode: '', rejectionReason: '' },
     onShow() {
       this._visit = {};
-      this.setData({ busy: writing, notice: '', pending: Boolean(pending), owner: client.getSession()?.role === 'owner' });
+      this.setData({ busy: writing, notice: '', recoveryReady: false, pending: Boolean(pending), owner: client.getSession()?.role === 'owner' });
       return this.refreshStaffOrders();
     },
     onHide() {
@@ -80,7 +83,7 @@ function createStaffOrdersPage({ runtime, wx }) {
       this.resetForm();
       this.setData({ rows: [], cursor: null });
     },
-    onUnload() { this.onHide(); pending = null; },
+    onUnload() { this.onHide(); },
     resetForm() { this.setData({ form: null, carrier: '', trackingNo: '', pickupCode: '', rejectionReason: '' }); },
     staffError(error) {
       if (authLost(error)) {
@@ -135,9 +138,13 @@ function createStaffOrdersPage({ runtime, wx }) {
       const current = () => this._visit && this._query === query;
       const cursor = append ? this.data.cursor : null;
       const status = queues[this.data.filter];
-      this.setData({ loading: true, error: '', loginRequired: false });
+      this.setData({ loading: true, error: '', loginRequired: false, recoveryReady: false });
       try {
         await authorized();
+        const restored = await recovery.inspect();
+        if (!current()) return;
+        pending = restored;
+        this.setData({ recoveryReady: true, pending: Boolean(pending), pendingOrderId: pending?.payload.orderId || '' });
         const result = await client.orders.list({ manage: true, limit: 10,
           ...(cursor ? { cursor } : {}), ...(status ? { status } : {}) });
         await authorized();
@@ -153,13 +160,13 @@ function createStaffOrdersPage({ runtime, wx }) {
     },
     openFulfillment(event) {
       const row = this.data.rows.find(item => item.id === event.currentTarget.dataset.id);
-      if (writing || pending || !row?.action) return;
+      if (writing || pending || !this.data.recoveryReady || !row?.action) return;
       this.resetForm();
       this.setData({ form: row, error: '', notice: '' });
     },
     openRejection(event) {
       const row = this.data.rows.find(item => item.id === event.currentTarget.dataset.id);
-      if (writing || pending || !row?.canReject || client.getSession()?.role !== 'owner') return;
+      if (writing || pending || !this.data.recoveryReady || !row?.canReject || client.getSession()?.role !== 'owner') return;
       this.resetForm();
       this.setData({ form: { ...row, action: 'reject' }, error: '', notice: '' });
     },
@@ -200,19 +207,22 @@ function createStaffOrdersPage({ runtime, wx }) {
           if (!await confirm(operation.action) || !current()) return;
           await authorized();
           if (!current()) return;
-          pending = { action: operation.action,
-            payload: { ...operation.payload, requestId: runtime.newCheckoutRequestId() } };
+          pending = await recovery.prepare({ action: operation.action,
+            payload: { ...operation.payload, requestId: runtime.newCheckoutRequestId() } });
         }
-        if (pending.action === 'reject') await client.orders.reject(pending.payload);
-        else await client.fulfillment[pending.action](pending.payload);
-        pending = null;
+        if (!current()) return;
+        const completed = await recovery.submit();
+        if (!completed.storageWarning) pending = null;
         await authorized();
         if (current()) {
           await this.refreshStaffOrders();
-          if (current() && !this.data.error) this.setData({ notice: operation.action === 'reject' ? '已拒单并记录模拟退款。' : '订单状态已更新。' });
+          if (current() && (completed.storageWarning || !this.data.error)) this.setData({ notice: completed.storageWarning
+            ? '操作已成功，本地恢复记录清理失败，请核对原操作。'
+            : operation.action === 'reject' ? '已拒单并记录模拟退款。' : '订单状态已更新。' });
         }
       } catch (error) {
-        if (!error.uncertain && !authLost(error)) pending = null;
+        try { pending = await recovery.inspect(); }
+        catch (_) { if (current()) this.setData({ recoveryReady: false }); }
         if (current()) {
           if (['VERSION_CONFLICT', 'INVALID_STATE'].includes(error.code)) await this.refreshStaffOrders();
           if (current()) {

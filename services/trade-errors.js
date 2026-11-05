@@ -2,6 +2,9 @@
 
 // 页面使用本地文案，不显示原始网络异常、响应正文、口令或令牌。
 const hints = Object.freeze({
+  INVALID_FULFILLMENT_RECORD: ['履约恢复记录已损坏，请先核对订单状态', 'review'],
+  FULFILLMENT_STORAGE_ERROR: ['履约记录无法读写，请检查本地存储后重试', 'review'],
+  FULFILLMENT_RECOVERY_REQUIRED: ['请先核对并重试上次履约操作', 'check_then_retry'],
   UNAUTHENTICATED: ['登录状态已失效，请重新登录', 'login'],
   SESSION_CHANGED: ['登录状态已变化，请重新操作', 'login'],
   AUTH_FAILED: ['身份或口令不正确', 'edit'],
