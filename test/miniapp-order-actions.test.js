@@ -41,7 +41,7 @@ async function fixture() {
     dialogs.at(-1).options.success({ confirm });
     await operation;
   }
-  return { ...shop, page, order, requests, choose, drop: action => { dropAction = action; },
+  return { ...shop, page, order, requests, choose, runtime, ui, drop: action => { dropAction = action; },
     switchSubject: value => { subject = value; } };
 }
 
@@ -133,4 +133,44 @@ test('订单操作：售后响应丢失时重试原申请，历史只显示一�
   assert.equal(page.data.saleRows.length, 1);
   assert.equal(page.data.saleRows[0].status, '待审核');
   assert.equal(page.data.saleRows[0].reason, '商品有破损');
+});
+
+test('售后恢复：申请响应丢失后重建页面，显式重试使用相同请求', async () => {
+  const base = await fixture();
+  await base.orders.simulatePay(buyer, base.order._id);
+  await base.page.refreshOrders();
+  base.page.openSaleForm(event(base.order._id));
+  base.page.editSaleReason({ detail: { value: '破损' } });
+  base.drop('afterSales.apply');
+  await base.page.submitSale();
+  const fresh = miniappHarness(base.runtime, { storage: base.ui.storage }).loadPage('pages/orders/orders');
+  await fresh.onShow();
+  assert.equal(fresh.data.salePending, true);
+  assert.equal(fresh.data.pendingSaleOrderId, base.order._id);
+  assert.equal(base.requests.filter(row => row.action === 'afterSales.apply').length, 1);
+  await fresh.retrySale();
+  const requests = base.requests.filter(row => row.action === 'afterSales.apply');
+  assert.deepEqual(requests[0].data, requests[1].data);
+  assert.equal(fresh.data.salePending, false);
+});
+
+test('售后恢复：损坏记录和缓存写入失败阻止申请，清理失败仍显示成功', async () => {
+  const base = await fixture();
+  await base.orders.simulatePay(buyer, base.order._id);
+  await base.page.refreshOrders();
+  base.page.openSaleForm(event(base.order._id));
+  base.page.editSaleReason({ detail: { value: '破损' } });
+  const originalSet = base.ui.wx.setStorageSync;
+  base.ui.wx.setStorageSync = () => { throw new Error('full'); };
+  await base.page.submitSale();
+  assert.equal(base.requests.some(row => row.action === 'afterSales.apply'), false);
+  base.ui.wx.setStorageSync = originalSet;
+  base.ui.wx.removeStorageSync = () => { throw new Error('locked'); };
+  await base.page.submitSale();
+  assert.match(base.page.data.actionNotice, /售后已提交/);
+  assert.equal(base.page.data.salePending, true);
+  const key = [...base.ui.storage.keys()][0];
+  base.ui.storage.set(key, { corrupt: true });
+  await base.page.restoreSale();
+  assert.equal(base.page.data.saleRecoveryReady, false);
 });

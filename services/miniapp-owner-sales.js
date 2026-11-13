@@ -1,5 +1,6 @@
 'use strict';
 const { TradeApiError } = require('./trade-errors');
+const { createAfterSaleRecovery } = require('./after-sale-recovery');
 
 const statuses = ['', 'REQUESTED', 'APPROVED', 'REJECTED', 'REFUNDED'];
 const labels = ['全部售后', '待审核', '审核通过', '已驳回', '已退款'];
@@ -9,13 +10,14 @@ const errorText = error => error instanceof TradeApiError ? error.message : '操
 function createOwnerSalesPage({ runtime, wx }) {
   const client = runtime.client;
   let pending = null, writing = false;
+  const recovery = createAfterSaleRecovery({ runtime, wx, owner: true });
   async function authorize() {
     await runtime.assertIdentity();
     if (client.getSession()?.role !== 'owner') throw new TradeApiError('FORBIDDEN');
   }
   return {
     data: { filters: labels, filter: 0, rows: [], cursor: null, loading: false,
-      busy: false, pending: false, error: '', notice: '', form: null, reason: '' },
+      busy: false, pending: false, recoveryReady: false, pendingSaleId: '', error: '', notice: '', form: null, reason: '' },
     onShow() {
       this._visit = {};
       this.setData({ busy: writing, pending: Boolean(pending), notice: '' });
@@ -26,7 +28,7 @@ function createOwnerSalesPage({ runtime, wx }) {
       this._query = null;
       this.setData({ rows: [], cursor: null, form: null, reason: '' });
     },
-    onUnload() { this.onHide(); pending = null; },
+    onUnload() { this.onHide(); },
     selectSaleFilter(event) {
       const filter = Number(event.detail.value);
       if (writing || !Number.isInteger(filter) || filter < 0 || filter >= statuses.length) return;
@@ -45,9 +47,12 @@ function createOwnerSalesPage({ runtime, wx }) {
       const query = this._query = {};
       const current = () => this._visit && this._query === query;
       const status = statuses[this.data.filter];
-      this.setData({ loading: true, error: '' });
+      this.setData({ loading: true, error: '', recoveryReady: false });
       try {
         await authorize();
+        pending = await recovery.inspect();
+        if (!current()) return;
+        this.setData({ recoveryReady: true, pending: Boolean(pending), pendingSaleId: pending?.payload.afterSaleId || '' });
         const result = await client.afterSales.list({ manage: true, limit: 10,
           ...(status ? { status } : {}), ...(cursor ? { cursor } : {}) });
         await authorize();
@@ -73,7 +78,7 @@ function createOwnerSalesPage({ runtime, wx }) {
     },
     openReview(event) {
       const row = this.data.rows.find(item => item.id === event.currentTarget.dataset.id);
-      if (!writing && !pending && row?.status === 'REQUESTED') this.setData({ form: row, reason: '', error: '' });
+      if (!writing && !pending && this.data.recoveryReady && row?.status === 'REQUESTED') this.setData({ form: row, reason: '', error: '' });
     },
     closeReview() { if (!writing) this.setData({ form: null, reason: '' }); },
     enterReviewReason(event) { if (!writing) this.setData({ reason: event.detail.value }); },
@@ -89,7 +94,7 @@ function createOwnerSalesPage({ runtime, wx }) {
     },
     refundSale(event) {
       const row = this.data.rows.find(item => item.id === event.currentTarget.dataset.id);
-      if (!pending && !writing && row?.status === 'APPROVED') {
+      if (!pending && !writing && this.data.recoveryReady && row?.status === 'APPROVED') {
         return this.writeSale({ type: 'refund', payload: { afterSaleId: row.id } });
       }
     },
@@ -113,17 +118,20 @@ function createOwnerSalesPage({ runtime, wx }) {
           if (!confirmed || !current()) return;
           await authorize();
           if (!current()) return;
-          pending = refund ? operation : { ...operation, payload: { ...operation.payload, requestId: runtime.newCheckoutRequestId() } };
+          pending = await recovery.prepare(refund ? operation
+            : { ...operation, payload: { ...operation.payload, requestId: runtime.newCheckoutRequestId() } });
         }
-        if (refund) await client.refunds.executeApproved(pending.payload);
-        else await client.afterSales.review(pending.payload);
-        pending = null;
+        if (!current()) return;
+        const completed = await recovery.submit();
+        if (!completed.storageWarning) pending = null;
         await authorize();
         if (!current()) return;
         await this.refreshSales();
-        if (current() && !this.data.error) this.setData({ notice: refund ? '模拟退款已完成。' : '审核已保存。' });
+        if (current() && (completed.storageWarning || !this.data.error)) this.setData({ notice: completed.storageWarning
+          ? '操作已成功，本地恢复记录清理失败，请核对原操作。' : refund ? '模拟退款已完成。' : '审核已保存。' });
       } catch (error) {
-        if (!error.uncertain && !denied(error)) pending = null;
+        try { pending = await recovery.inspect(); }
+        catch (_) { if (current()) this.setData({ recoveryReady: false }); }
         if (current()) {
           if (['VERSION_CONFLICT', 'INVALID_STATE', 'AFTER_SALE_NOT_APPROVED', 'ALREADY_REFUNDED'].includes(error.code)) await this.refreshSales();
           if (current()) {
@@ -133,7 +141,8 @@ function createOwnerSalesPage({ runtime, wx }) {
         }
       } finally {
         writing = false;
-        if (this._visit) this.setData({ busy: false, pending: Boolean(pending) });
+        if (this._visit) this.setData({ busy: false, pending: Boolean(pending),
+          pendingSaleId: pending?.payload.afterSaleId || '' });
       }
     }
   };

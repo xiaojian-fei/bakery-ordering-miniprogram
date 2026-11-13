@@ -1,5 +1,6 @@
 'use strict';
 const { TradeApiError } = require('./trade-errors');
+const { createAfterSaleRecovery } = require('./after-sale-recovery');
 
 const eligible = ['PENDING_ACCEPTANCE', 'ACCEPTED', 'READY_FOR_PICKUP', 'SHIPPING', 'COMPLETED'];
 const saleLabels = { REQUESTED: '待审核', APPROVED: '审核通过', REJECTED: '已驳回', REFUNDED: '已退款' };
@@ -17,6 +18,7 @@ function orderActions(order) {
 
 function createOrderActions({ runtime, wx }) {
   let busy = false, pendingSale = null;
+  const recovery = createAfterSaleRecovery({ runtime, wx });
   const rowFor = (page, event) => page.data.orderRows.find(row => row.id === event.currentTarget.dataset.id);
   const confirm = (title, content) => new Promise((resolve, reject) =>
     wx.showModal({ title, content, success: result => resolve(result.confirm === true), fail: reject }));
@@ -37,7 +39,8 @@ function createOrderActions({ runtime, wx }) {
       }
     } finally {
       busy = false;
-      if (page._visible) page.setData({ actionBusy: false, salePending: Boolean(pendingSale) });
+      if (page._visible) page.setData({ actionBusy: false, salePending: Boolean(pendingSale),
+        pendingSaleOrderId: pendingSale?.payload.orderId || '' });
     }
   }
 
@@ -70,18 +73,29 @@ function createOrderActions({ runtime, wx }) {
 
   async function sendSale(page, current) {
     try {
-      const result = await runtime.client.afterSales.apply(pendingSale);
-      pendingSale = null;
+      const completed = await recovery.submit();
+      const result = completed.result;
+      if (!completed.storageWarning) pendingSale = null;
       await runtime.assertIdentity();
-      if (current()) page.setData({ saleOrderId: '', saleReason: '', actionNotice: '售后申请已提交：' + result._id });
+      if (current()) page.setData({ saleOrderId: '', saleReason: '', actionNotice: completed.storageWarning
+        ? '售后已提交，本地恢复记录清理失败，请核对原申请。' : '售后申请已提交：' + result._id });
     } catch (error) {
-      if (!error.uncertain) pendingSale = null;
+      try { pendingSale = await recovery.inspect(); }
+      catch (_) { if (current()) page.setData({ saleRecoveryReady: false }); }
       if (error.uncertain && current()) page.setData({ actionError: '申请结果待核对，请重试原申请。' });
       else throw error;
     }
   }
 
   return {
+    restoreSale() {
+      return run(this, async current => {
+        this.setData({ saleRecoveryReady: false });
+        pendingSale = await recovery.inspect();
+        if (current()) this.setData({ saleRecoveryReady: true, salePending: Boolean(pendingSale),
+          pendingSaleOrderId: pendingSale?.payload.orderId || '' });
+      });
+    },
     payOrder(event) { return changeOrder(this, event, 'pay'); },
     cancelPendingOrder(event) { return changeOrder(this, event, 'cancel'); },
     revealPickup(event) {
@@ -98,7 +112,7 @@ function createOrderActions({ runtime, wx }) {
     hidePickup() { this.setData({ pickup: null }); },
     openSaleForm(event) {
       const order = rowFor(this, event);
-      if (!order?.canApply || busy || pendingSale) return;
+      if (!order?.canApply || busy || pendingSale || !this.data.saleRecoveryReady) return;
       this.setData({ saleOrderId: order.id, saleReason: '', actionError: '', actionNotice: '' });
     },
     closeSaleForm() {
@@ -110,18 +124,19 @@ function createOrderActions({ runtime, wx }) {
     submitSale() {
       const orderId = this.data.saleOrderId;
       const reason = this.data.saleReason.trim();
-      if (pendingSale || !this.data.orderRows.some(row => row.id === orderId && row.canApply)) return;
+      if (pendingSale || !this.data.saleRecoveryReady || !this.data.orderRows.some(row => row.id === orderId && row.canApply)) return;
       if (!reason || reason.length > 200) {
         this.setData({ actionError: '请输入 1 至 200 字的售后原因。' });
         return;
       }
       return run(this, async current => {
-        pendingSale = { orderId, reason, requestId: runtime.newCheckoutRequestId() };
+        pendingSale = await recovery.prepare({ type: 'apply', payload: { orderId, reason, requestId: runtime.newCheckoutRequestId() } });
+        if (!current()) return;
         await sendSale(this, current);
       });
     },
     retrySale() {
-      if (pendingSale) return run(this, current => sendSale(this, current));
+      if (pendingSale && this.data.saleRecoveryReady) return run(this, current => sendSale(this, current));
     },
     toggleSaleHistory() {
       if (busy) return;

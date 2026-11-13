@@ -43,7 +43,7 @@ async function fixture() {
     dialog.options.success({ confirm });
     await work;
   }
-  return { ...base, buyer, owner, staff, page, sale, order, choose, writes, lost: action => { lost = action; } };
+  return { ...base, buyer, owner, staff, page, sale, order, choose, writes, ui, lost: action => { lost = action; } };
 }
 
 test('售后管理：店主审批与退款分开，退款响应丢失时重试只保留一笔退款', async () => {
@@ -121,6 +121,32 @@ test('售后管理：取消审核不发送写入，驳回响应丢失后复用�
   assert.deepEqual(writes[0], writes[1]);
   assert.equal(page.data.rows[0].status, 'REJECTED');
   assert.equal(page.data.rows[0].reviewReason, '材料不完整');
+});
+
+test('售后恢复：审核和退款在页面重建后只恢复待核对记录', async () => {
+  const base = await fixture();
+  base.page.openReview(event({ id: base.sale._id }));
+  base.page.enterReviewReason({ detail: { value: '确认破损' } });
+  base.lost('afterSales.review');
+  await base.choose(() => base.page.submitReview(event({ decision: 'approve' })));
+  const fresh = miniappHarness(base.owner, { storage: base.ui.storage }).loadPage(route);
+  await fresh.onShow();
+  assert.equal(fresh.data.pending, true);
+  assert.equal(base.writes.length, 1);
+  await fresh.retrySaleWrite();
+  assert.deepEqual(base.writes[0], base.writes[1]);
+  assert.equal(fresh.data.rows[0].status, 'APPROVED');
+  const freshUi = miniappHarness(base.owner, { storage: base.ui.storage });
+  const refundPage = freshUi.loadPage(route);
+  await refundPage.onShow();
+  base.lost('refunds.executeApproved');
+  await base.choose(() => refundPage.refundSale(event({ id: base.sale._id })), true, freshUi);
+  const final = miniappHarness(base.owner, { storage: base.ui.storage }).loadPage(route);
+  await final.onShow();
+  assert.equal(final.data.pending, true);
+  await final.retrySaleWrite();
+  assert.equal(final.data.rows[0].status, 'REFUNDED');
+  assert.equal(Object.keys(base.repository.snapshot().refunds).length, 1);
 });
 
 test('售后管理：员工直接打开页面及店主退出后均无法查看售后', async () => {

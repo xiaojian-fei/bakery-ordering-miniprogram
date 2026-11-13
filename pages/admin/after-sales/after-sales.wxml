@@ -5,7 +5,9 @@
   <button size="mini" bindtap="refreshSales" disabled="{{loading || busy}}">刷新售后</button>
   <view wx:if="{{error}}" class="runtime-error">{{error}}</view>
   <view wx:if="{{notice}}">{{notice}}</view>
-  <button wx:if="{{pending}}" bindtap="retrySaleWrite" disabled="{{busy}}">重试原操作</button>
+  <view wx:if="{{pending}}">待核对售后：{{pendingSaleId}}
+    <button bindtap="retrySaleWrite" disabled="{{busy || !recoveryReady}}">重试原操作</button>
+  </view>
   <view wx:if="{{loading}}">正在加载…</view>
   <view wx:if="{{!loading && !error && !rows.length}}">暂无售后记录</view>
   <view wx:for="{{rows}}" wx:key="id" class="sale-card">

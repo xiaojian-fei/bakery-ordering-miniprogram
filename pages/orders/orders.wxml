@@ -8,7 +8,10 @@
   <view wx:if="{{actionError}}" class="runtime-error">{{actionError}}</view>
   <view wx:if="{{actionNotice}}">{{actionNotice}}</view>
   <view wx:if="{{actionBusy}}">正在处理…</view>
-  <button wx:if="{{salePending}}" size="mini" bindtap="retrySale" disabled="{{actionBusy}}">重试原售后申请</button>
+  <view wx:if="{{salePending}}">待核对售后订单：{{pendingSaleOrderId}}
+    <button size="mini" bindtap="retrySale" disabled="{{actionBusy || !saleRecoveryReady}}">重试原售后申请</button>
+  </view>
+  <button wx:if="{{!saleRecoveryReady}}" size="mini" bindtap="restoreSale" disabled="{{actionBusy}}">核对售后恢复记录</button>
   <view wx:if="{{showSales}}" class="order-card">
     <view class="order-header">我的售后</view>
     <view wx:if="{{!saleRows.length && !actionBusy && !actionError}}">暂无售后记录</view>

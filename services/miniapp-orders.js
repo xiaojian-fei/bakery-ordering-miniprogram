@@ -30,12 +30,13 @@ function createOrdersPage({ runtime, wx }) {
     data: { unifiedMode: true, orderRows: [], cursor: null, loading: false, error: '',
       filter: 0, filters: ['全部订单', ...Object.values(labels)], selectedId: '', events: [], eventCursor: null,
       timelineLoading: false, timelineError: '', actionBusy: false, actionNotice: '', actionError: '', pickup: null,
-      saleOrderId: '', saleReason: '', salePending: false, showSales: false, saleRows: [], saleCursor: null },
+      saleOrderId: '', saleReason: '', salePending: false, saleRecoveryReady: false, pendingSaleOrderId: '',
+      showSales: false, saleRows: [], saleCursor: null },
     onShow() {
       this._visible = true;
       this._orderVisit = {};
       this.setData({ actionNotice: '', actionError: '', pickup: null, showSales: false, saleRows: [], saleCursor: null });
-      return this.refreshOrders();
+      return Promise.all([this.refreshOrders(), this.restoreSale()]);
     },
     onHide() {
       this._visible = false; this._listRun = null; this._timelineRun = null;
