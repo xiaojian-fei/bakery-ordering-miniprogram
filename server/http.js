@@ -251,6 +251,22 @@ function createHttpServer({ config, application, accounts, sessions, repository,
       return sendJson(res, 200, { authenticated: false },
         [sessions.clearCookie(), sessions.clearStaffCookie()]);
     }
+    if (pathname === '/api/password') {
+      throttle(req, 'password', config.authRateLimit, config.authRateWindowMs);
+      const ctx = await requireSession(req);
+      const body = await readJson(req, config.maxBodyBytes);
+      const result = await accounts.changePassword({
+        openid: ctx.session.openid,
+        currentPassword: body.currentPassword,
+        newPassword: body.newPassword,
+        keepToken: ctx.token
+      });
+      // 员工改密后旧员工会话已失效，这里顺手清掉 Cookie，页面引导重新登录
+      const cookies = result.reauthRequired
+        ? [sessions.clearCookie(), sessions.clearStaffCookie()]
+        : [];
+      return sendJson(res, 200, result, cookies);
+    }
     if (pathname === '/api/action') {
       const ctx = await requireSession(req);
       const body = await readJson(req, config.maxBodyBytes);

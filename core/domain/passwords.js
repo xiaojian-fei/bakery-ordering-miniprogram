@@ -8,12 +8,12 @@ const PARAMETERS = Object.freeze({ N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 102
 const MIN_LENGTH = 12;
 const CUSTOMER_MIN_LENGTH = 8;
 
-// minLength 只允许在两组固定策略间选择：员工口令保持 12，顾客口令 8。
-// 不允许调用方传入任意下限，避免出现比策略更弱的口令。
+// minLength 只允许在两组固定策略间选择：员工密码保持 12，顾客密码 8。
+// 不允许调用方传入任意下限，避免出现比策略更弱的密码。
 function requireLength(password, minLength) {
-  ensure(minLength === MIN_LENGTH || minLength === CUSTOMER_MIN_LENGTH, 'INVALID_CONFIG', '口令长度策略不合法');
+  ensure(minLength === MIN_LENGTH || minLength === CUSTOMER_MIN_LENGTH, 'INVALID_CONFIG', '密码长度策略不合法');
   ensure(typeof password === 'string' && password.length >= minLength && Buffer.byteLength(password, 'utf8') <= 128,
-    'INVALID_PASSWORD', '口令至少' + minLength + '个字符，UTF-8编码不超过128字节');
+    'INVALID_PASSWORD', '密码至少' + minLength + '个字符，UTF-8编码不超过128字节');
 }
 
 async function hashPassword(password, { minLength = MIN_LENGTH } = {}) {

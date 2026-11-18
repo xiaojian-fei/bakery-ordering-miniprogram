@@ -32,7 +32,7 @@ function loadConfig(env = process.env, overrides = {}) {
     dbFile: path.resolve(ROOT, text(env, 'DB_FILE', 'data/bakery.sqlite')),
     uploadDir: path.resolve(ROOT, text(env, 'UPLOAD_DIR', 'data/uploads')),
     webDir: path.join(ROOT, 'web'),
-    // 首个店主由部署侧初始化；未提供口令时随机生成并只在首次启动打印一次。
+    // 首个店主由部署侧初始化；未提供密码时随机生成并只在首次启动打印一次。
     ownerOpenid: text(env, 'OWNER_OPENID', 'owner', /^[A-Za-z0-9_-]{1,80}$/),
     ownerUsername: text(env, 'OWNER_USERNAME', 'owner', /^[A-Za-z0-9][A-Za-z0-9_.-]{2,31}$/),
     ownerPassword: env.OWNER_PASSWORD || '',

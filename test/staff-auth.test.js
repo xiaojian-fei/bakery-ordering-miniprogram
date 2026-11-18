@@ -6,7 +6,7 @@ const { authFixture, DEMO_PASSWORD } = require('./support/auth-fixture');
 const code = expected => error => error.code === expected;
 const owner = { openid: 'owner-demo', role: 'owner', staffVerified: true };
 
-test('FR-01 相同口令使用随机盐生成不同哈希，验证失败不抛泄露原文的错误', async () => {
+test('FR-01 相同密码使用随机盐生成不同哈希，验证失败不抛泄露原文的错误', async () => {
   const first = await hashPassword(DEMO_PASSWORD);
   const second = await hashPassword(DEMO_PASSWORD);
   assert.notEqual(first, second);
@@ -18,7 +18,7 @@ test('FR-01 相同口令使用随机盐生成不同哈希，验证失败不抛�
   await assert.rejects(hashPassword('a'.repeat(129)), code('INVALID_PASSWORD'));
 });
 
-test('FR-01 正确登录产生身份绑定会话，库中不保存原始令牌或明文口令', async () => {
+test('FR-01 正确登录产生身份绑定会话，库中不保存原始令牌或明文密码', async () => {
   const { auth, repository } = await authFixture();
   const session = await auth.login(owner.openid, DEMO_PASSWORD);
   assert.match(session.token, /^[0-9a-f]{64}$/);
@@ -38,7 +38,7 @@ test('FR-01 没有员工令牌时不能仅凭用户记录中的店主角色提�
   await assert.rejects(auth.login('new-customer', DEMO_PASSWORD), code('AUTH_FAILED'));
 });
 
-test('FR-01 错误口令累计次数真正提交，达到阈值锁定，锁定过期可重新登录', async () => {
+test('FR-01 错误密码累计次数真正提交，达到阈值锁定，锁定过期可重新登录', async () => {
   const { auth, repository, setTime } = await authFixture({ maxFailures: 2, lockMs: 100 });
   await assert.rejects(auth.login(owner.openid, 'wrong-demo-password'), code('AUTH_FAILED'));
   assert.equal(repository.snapshot().staff_credentials[owner.openid].failedAttempts, 1);
@@ -73,7 +73,7 @@ test('FR-01 会话在截止瞬间失效，注销可以重复且不可注销他�
   await assert.rejects(auth.resolveActor(owner.openid, second.token), code('UNAUTHENTICATED'));
 });
 
-test('FR-01 店主重设口令后旧会话和旧口令失效', async () => {
+test('FR-01 店主重设密码后旧会话和旧密码失效', async () => {
   const { auth } = await authFixture();
   const previous = await auth.login('staff-demo', DEMO_PASSWORD);
   await auth.setPassword(owner, 'staff-demo', 'DemoOnly-Replaced-2026');
@@ -110,7 +110,7 @@ test('FR-01 登录提交失败不留下可用会话或成功日志', async () =>
   assert.equal(Object.keys(repository.snapshot().auth_events || {}).length, 0);
 });
 
-test('FR-01 计算口令期间账号版本变化必须拒绝旧认证结果', async () => {
+test('FR-01 计算密码期间账号版本变化必须拒绝旧认证结果', async () => {
   const { auth, repository } = await authFixture();
   const transaction = repository.transaction.bind(repository);
   let calls = 0;
@@ -127,7 +127,7 @@ test('FR-01 计算口令期间账号版本变化必须拒绝旧认证结果', as
   assert.equal(Object.keys(repository.snapshot().staff_sessions || {}).length, 0);
 });
 
-test('FR-01 店主授权新员工并设置口令，撤销授权使会话失效但保留顾客身份', async () => {
+test('FR-01 店主授权新员工并设置密码，撤销授权使会话失效但保留顾客身份', async () => {
   const { auth } = await authFixture();
   assert.equal((await auth.setStaffAccess(owner, 'new-staff', true)).role, 'staff');
   await assert.rejects(auth.login('new-staff', DEMO_PASSWORD), code('AUTH_FAILED'));

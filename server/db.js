@@ -15,7 +15,7 @@ async function openRepository({ dbFile, log = () => {} }) {
 
 /**
  * 首个店主初始化。与原有的 OwnerBootstrap 一致：只在全新库上创建，
- * 已有标记时不重设口令；这里额外补写网页登录需要的 username。
+ * 已有标记时不重设密码；这里额外补写网页登录需要的 username。
  */
 async function ensureOwner(repository, { ownerOpenid, ownerUsername, ownerPassword, clock = Date.now }) {
   const bootstrap = new OwnerBootstrap(repository, { clock });

@@ -43,7 +43,7 @@ git config --local user.email "从你自己的 GitHub 邮箱设置页复制的 n
 git config --local pull.ff only
 ```
 
-提交邮箱从 https://github.com/settings/emails 获取。每人使用自己的 noreply 邮箱，保留真实贡献归属。账号登录使用自己的 GitHub 凭证，口令、Token 和数据库文件留在本地。
+提交邮箱从 https://github.com/settings/emails 获取。每人使用自己的 noreply 邮箱，保留真实贡献归属。账号登录使用自己的 GitHub 凭证，密码、Token 和数据库文件留在本地。
 
 网页端已经完成迁移，不需要安装任何第三方依赖（`package.json` 没有 dependencies）。提交前执行：
 
@@ -93,7 +93,7 @@ git push -u origin codex/web-b-cart
 
 测试按改动范围执行。页面改动检查正常流程、表单错误和刷新恢复；接口或数据库改动检查权限、失败回滚和必要并发行为。公共交易逻辑变动执行全量业务回归。文档改动检查链接、命令和状态描述。
 
-本地配置、.env、Token、口令、真实用户信息、SQLite 文件（含 -wal/-shm）、备份、uploads、node_modules 和构建产物不加入暂存。数据库接入 PR 要先补齐这些路径的忽略规则，同时提交结构迁移和虚构种子脚本。依赖变动提交对应 package.json 与锁文件。
+本地配置、.env、Token、密码、真实用户信息、SQLite 文件（含 -wal/-shm）、备份、uploads、node_modules 和构建产物不加入暂存。数据库接入 PR 要先补齐这些路径的忽略规则，同时提交结构迁移和虚构种子脚本。依赖变动提交对应 package.json 与锁文件。
 
 ## 6. PR、审核与合并
 

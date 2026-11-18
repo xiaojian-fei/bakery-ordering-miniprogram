@@ -7,7 +7,7 @@ const { verifyPassword } = require('../core/domain/passwords');
 const { createApplication } = require('../core/application');
 const { Repository } = require('./support/repository');
 
-// 仅测试使用；部署没有默认口令。
+// 仅测试使用；部署没有默认密码。
 const password = 'DemoOnly-Bootstrap-2026';
 const input = () => ({ ownerOpenid: 'owner-demo', password });
 const code = expected => error => error.code === expected;
@@ -16,7 +16,7 @@ function fixture(seed) {
   return { repository, bootstrap: new OwnerBootstrap(repository, { clock: () => 1000000 }) };
 }
 
-test('初始化：首个店主、随机盐口令与标记原子创建，能接入现有员工登录', async () => {
+test('初始化：首个店主、随机盐密码与标记原子创建，能接入现有员工登录', async () => {
   const { repository, bootstrap } = fixture();
   const result = await bootstrap.initialize(input());
   assert.deepEqual(result, { initialized: true, changed: true });
@@ -31,7 +31,7 @@ test('初始化：首个店主、随机盐口令与标记原子创建，能接�
   assert.equal((await auth.resolveActor('owner-demo', login.token)).staffVerified, true);
 });
 
-test('初始化：同一店主重试不重设口令、不清会话、不重复记录事件', async () => {
+test('初始化：同一店主重试不重设密码、不清会话、不重复记录事件', async () => {
   const { repository, bootstrap } = fixture();
   await bootstrap.initialize(input());
   const before = repository.snapshot();
@@ -59,7 +59,7 @@ test('初始化：同一店主并发重试只创建一套记录', async () => {
   assert.equal(Object.keys(repository.snapshot().staff_credentials).length, 1);
 });
 
-test('初始化：既有顾客、员工或残留口令不能被静默覆盖提升为店主', async () => {
+test('初始化：既有顾客、员工或残留密码不能被静默覆盖提升为店主', async () => {
   for (const seed of [{ users: { 'owner-demo': { role: 'customer', active: true } } },
     { users: { 'owner-demo': { role: 'staff', active: true } } },
     { staff_credentials: { 'owner-demo': { passwordHash: 'existing' } } }]) {
@@ -96,7 +96,7 @@ test('初始化：客户端不能用伪造系统身份调用初始化动作', as
   assert.deepEqual(repository.snapshot(), {});
 });
 
-test('初始化：非法身份或弱口令在写入前拒绝', async () => {
+test('初始化：非法身份或弱密码在写入前拒绝', async () => {
   const { repository, bootstrap } = fixture();
   await assert.rejects(bootstrap.initialize({ ...input(), ownerOpenid: '../bad' }), code('UNAUTHENTICATED'));
   await assert.rejects(bootstrap.initialize({ ...input(), password: 'short' }), code('INVALID_PASSWORD'));

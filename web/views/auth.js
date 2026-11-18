@@ -13,9 +13,9 @@ export function render(ctx, mount) {
   function draw() {
     clear(mount);
     const username = el('input', { name: 'username', autocomplete: 'username', required: true, placeholder: '请输入用户名' });
-    const password = el('input', { name: 'password', type: 'password', autocomplete: 'current-password', required: true, placeholder: '请输入口令' });
+    const password = el('input', { name: 'password', type: 'password', autocomplete: 'current-password', required: true, placeholder: '请输入密码' });
     const confirm = mode === 'register'
-      ? el('input', { name: 'confirm', type: 'password', autocomplete: 'new-password', required: true, placeholder: '再次输入口令' })
+      ? el('input', { name: 'confirm', type: 'password', autocomplete: 'new-password', required: true, placeholder: '再次输入密码' })
       : null;
 
     const submit = el('button', { class: 'primary', type: 'submit' }, mode === 'login' ? '登录' : '注册并登录');
@@ -26,8 +26,8 @@ export function render(ctx, mount) {
         fail('');
         const name = username.value.trim();
         const pass = password.value;
-        if (!name || !pass) return fail('请填写用户名和口令');
-        if (mode === 'register' && confirm.value !== pass) return fail('两次输入的口令不一致');
+        if (!name || !pass) return fail('请填写用户名和密码');
+        if (mode === 'register' && confirm.value !== pass) return fail('两次输入的密码不一致');
         submit.disabled = true;
         submit.textContent = mode === 'login' ? '登录中…' : '注册中…';
         try {
@@ -55,8 +55,8 @@ export function render(ctx, mount) {
       : '注册后可在本店下单、查看订单与申请售后。'),
     el('div', { class: 'grid', style: 'gap:14px' },
       field('用户名', username, mode === 'register' ? USERNAME_HINT : null),
-      field('口令', password, mode === 'register' ? '至少 8 位字符' : null),
-      confirm ? field('确认口令', confirm) : null),
+      field('密码', password, mode === 'register' ? '至少 8 位字符' : null),
+      confirm ? field('确认密码', confirm) : null),
     message,
     el('div', { class: 'actions', style: 'margin-top:16px' }, submit));
 

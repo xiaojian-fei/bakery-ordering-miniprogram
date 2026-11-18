@@ -417,39 +417,66 @@ async function staff(ctx, mount) {
   }
 
   clear(mount);
-  const table = el('table', {},
-    el('thead', {}, el('tr', {},
-      el('th', {}, '用户名'), el('th', {}, '角色'), el('th', {}, '状态'), el('th', {}, '操作'))),
-    el('tbody', {}, ...list.map(person => el('tr', {},
+
+  // 逐行构建，避免深层嵌套；店主行不可改，员工行可重置密码或启停。
+  function staffRow(person) {
+    const cells = [
       el('td', {}, person.username || '—'),
       el('td', {}, person.role === 'owner' ? '店主' : '店员'),
-      el('td', {}, person.active ? el('span', { class: 'status active' }, '启用') : el('span', { class: 'status dead' }, '停用')),
-      el('td', {}, person.role === 'owner' ? el('span', { class: 'desc' }, '不可修改')
-        : el('button', {
-          class: 'small',
-          onclick: async event => {
-            const button = event.currentTarget;
-            button.disabled = true;
-            try {
-              const response = await fetch('/api/staff/access', {
-                method: 'POST', credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: person.username, enabled: !person.active })
-              });
-              const body = await response.json();
-              if (!response.ok) throw new Error(apiError(body, '操作失败'));
-              toast(person.active ? '已停用' : '已启用', 'ok');
-              await staff(ctx, mount);
-            } catch (error) { errorToast(error); button.disabled = false; }
-          }
-        }, person.active ? '停用' : '启用'))))));
+      el('td', {}, person.active
+        ? el('span', { class: 'status active' }, '启用')
+        : el('span', { class: 'status dead' }, '停用'))
+    ];
+
+    if (person.role === 'owner') {
+      cells.push(el('td', {}, el('span', { class: 'desc' }, '不可修改')));
+      return el('tr', {}, ...cells);
+    }
+
+    const reset = el('button', { class: 'small' }, '重置密码');
+    reset.addEventListener('click', async () => {
+      const value = window.prompt(`为 ${person.username} 设置新密码（至少 12 位）`);
+      if (value === null) return;
+      if (value.length < 12) { toast('员工密码至少 12 位', 'error'); return; }
+      reset.disabled = true;
+      try {
+        await ctx.api.staff.setPassword({ targetOpenid: person.openid, password: value });
+        toast('已重置该员工的密码，其原登录已失效', 'ok');
+        await staff(ctx, mount);
+      } catch (error) { errorToast(error); reset.disabled = false; }
+    });
+
+    const toggle = el('button', { class: 'small' }, person.active ? '停用' : '启用');
+    toggle.addEventListener('click', async () => {
+      toggle.disabled = true;
+      try {
+        const response = await fetch('/api/staff/access', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: person.username, enabled: !person.active })
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(apiError(body, '操作失败'));
+        toast(person.active ? '已停用' : '已启用', 'ok');
+        await staff(ctx, mount);
+      } catch (error) { errorToast(error); toggle.disabled = false; }
+    });
+
+    cells.push(el('td', {}, el('div', { class: 'actions' }, reset, toggle)));
+    return el('tr', {}, ...cells);
+  }
+
+  const head = el('thead', {}, el('tr', {},
+    el('th', {}, '用户名'), el('th', {}, '角色'), el('th', {}, '状态'), el('th', {}, '操作')));
+  const rows = el('tbody', {}, ...list.map(person => staffRow(person)));
+  const table = el('table', {}, head, rows);
   mount.appendChild(el('div', { class: 'card' }, el('h2', {}, '员工账号'), table));
 
   const username = el('input', { placeholder: '3～32 位字母数字' });
   const password = el('input', { type: 'password', placeholder: '至少 12 位字符' });
   const create = el('button', { class: 'primary' }, '创建员工账号');
   create.addEventListener('click', async () => {
-    if (!username.value.trim() || !password.value) { toast('请填写用户名与口令', 'error'); return; }
+    if (!username.value.trim() || !password.value) { toast('请填写用户名与密码', 'error'); return; }
     create.disabled = true;
     try {
       const response = await fetch('/api/staff', {
@@ -466,7 +493,7 @@ async function staff(ctx, mount) {
 
   mount.appendChild(el('div', { class: 'card' },
     el('h2', {}, '新增员工'),
-    el('p', { class: 'desc', style: 'color:#8a7a68' }, '员工口令至少 12 位；员工只能处理履约，不能修改店铺配置与退款。'),
-    el('div', { class: 'form-grid' }, field('用户名', username), field('初始口令', password)),
+    el('p', { class: 'desc', style: 'color:#8a7a68' }, '员工密码至少 12 位；员工只能处理履约，不能修改店铺配置与退款。'),
+    el('div', { class: 'form-grid' }, field('用户名', username), field('初始密码', password)),
     el('div', { class: 'actions', style: 'margin-top:14px' }, create)));
 }

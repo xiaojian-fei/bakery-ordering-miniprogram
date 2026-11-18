@@ -5,6 +5,7 @@ import * as addresses from './views/addresses.js';
 import * as orders from './views/orders.js';
 import * as staff from './views/staff.js';
 import * as owner from './views/owner.js';
+import * as passwordView from './views/password.js';
 import { el, clear, toast, errorToast, apiError } from './ui.js';
 import { createBrowserStorage } from './storage.js';
 
@@ -20,6 +21,7 @@ const ROUTES = [
   { pattern: /^\/checkout$/, view: cartView, route: 'checkout' },
   { pattern: /^\/addresses$/, view: addresses, route: 'addresses', nav: '收货地址' },
   { pattern: /^\/orders$/, view: orders, route: 'orders', nav: '我的订单' },
+  { pattern: /^\/password$/, view: passwordView, route: 'password' },
   { pattern: /^\/order\/([A-Za-z0-9_-]{1,80})$/, view: orders, route: 'order' },
   { pattern: /^\/staff$/, view: staff, route: 'staff', nav: '履约工作台', staff: true },
   { pattern: /^\/owner(?:\/([a-z-]+))?$/, view: owner, route: 'owner', nav: '店铺管理', owner: true }
@@ -154,6 +156,16 @@ const ctx = {
     await ctx.refreshSession();
     return state.session;
   },
+  /** 服务端已经注销（例如改密后强制重新登录）时清空本地状态并回到登录页。 */
+  forceLogout(message) {
+    Promise.resolve(storage.clearNamespace(CHECKOUT_NAMESPACE)).catch(() => {});
+    state.session = { authenticated: false };
+    state.api = null;
+    state.cartCount = 0;
+    location.hash = '#/';
+    render();
+    if (message) toast(message, 'ok');
+  },
   async logout() {
     await postJson('/api/logout', {});
     // 退出时清掉本机草稿，避免下一位使用者看到上一位的结算意图。
@@ -192,6 +204,10 @@ function renderNav() {
   account.appendChild(el('span', { class: 'role-tag' },
     ROLE_TEXT[state.session.staffRole || state.session.role] || '顾客'));
   account.appendChild(el('span', {}, state.session.username || ''));
+  account.appendChild(el('button', {
+    class: 'ghost small',
+    onclick: () => ctx.navigate('#/password')
+  }, '修改密码'));
   account.appendChild(el('button', {
     class: 'ghost small',
     onclick: async () => { try { await ctx.logout(); } catch (error) { errorToast(error); } }

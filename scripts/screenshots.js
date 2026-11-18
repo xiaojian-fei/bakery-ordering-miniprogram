@@ -166,7 +166,7 @@ async function main() {
     await shot(cdp, '06-收货地址');
 
     await evaluate(cdp, `(async () => {
-      document.querySelector('#account button').click();
+      [...document.querySelectorAll('#account button')].find(b => b.textContent === '退出').click();
       await __waitFor(() => document.querySelector('.auth form'));
       await __login(${JSON.stringify(OWNER_USERNAME)}, ${JSON.stringify(OWNER_PASSWORD)});
       await __waitFor(() => location.hash.startsWith('#/owner'));
@@ -192,8 +192,14 @@ async function main() {
     })()`);
     await shot(cdp, '10-履约工作台');
 
+    await evaluate(cdp, `(async () => {
+      location.hash = '#/password';
+      await __waitFor(() => /修改密码/.test(document.querySelector('#main h1')?.textContent || ''));
+    })()`);
+    await shot(cdp, '11-修改密码');
+
     cdp.close();
-    console.log('完成，共 10 张截图');
+    console.log('完成，共 11 张截图');
   } finally {
     chromium.kill('SIGKILL');
     fs.rmSync(profile, { recursive: true, force: true });

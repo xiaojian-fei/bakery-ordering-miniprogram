@@ -86,7 +86,7 @@ test('统一入口：不通过默认身份降级掩盖错误，不泄露内部�
   assert.ok(!JSON.stringify(response).includes('internal-sensitive-detail'));
 });
 
-test('统一入口：店主授权和设置口令后，新员工只能得到店员权限', async () => {
+test('统一入口：店主授权和设置密码后，新员工只能得到店员权限', async () => {
   const { call } = await fixture();
   const ownerLogin = await call('staff.login', { password: DEMO_PASSWORD }, 'owner-demo');
   const token = ownerLogin.data.token;

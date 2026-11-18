@@ -34,13 +34,13 @@ class StaffAuthService {
   async login(openid, password) {
     requireIdentity(openid);
     ensure(typeof password === 'string' && password.length > 0 && Buffer.byteLength(password, 'utf8') <= 128,
-      'AUTH_FAILED', '身份或口令不正确');
+      'AUTH_FAILED', '身份或密码不正确');
     const initial = await this.repository.transaction(async tx => ({
       user: await tx.get('users', openid), credential: await tx.get('staff_credentials', openid)
     }));
-    ensure(enabledStaff(initial.user, initial.credential), 'AUTH_FAILED', '身份或口令不正确');
+    ensure(enabledStaff(initial.user, initial.credential), 'AUTH_FAILED', '身份或密码不正确');
     ensure(!(initial.credential.lockedUntil > this.clock()), 'AUTH_LOCKED', '登录失败次数过多，请稍后重试');
-    // 较昂贵的口令计算放在事务外；提交前必须重新检查账号和口令版本。
+    // 较昂贵的密码计算放在事务外；提交前必须重新检查账号和密码版本。
     const correct = await verifyPassword(password, initial.credential.passwordHash);
     const token = randomBytes(32).toString('hex');
     const sessionId = digest(token);
@@ -48,7 +48,7 @@ class StaffAuthService {
     const result = await this.repository.transaction(async tx => {
       const user = await tx.get('users', openid);
       const credential = await tx.get('staff_credentials', openid);
-      ensure(enabledStaff(user, credential), 'AUTH_FAILED', '身份或口令不正确');
+      ensure(enabledStaff(user, credential), 'AUTH_FAILED', '身份或密码不正确');
       ensure(user.authVersion === initial.user.authVersion && user.role === initial.user.role
         && credential.passwordVersion === initial.credential.passwordVersion
         && credential.passwordHash === initial.credential.passwordHash,
@@ -77,7 +77,7 @@ class StaffAuthService {
       return { token, role: user.role, expiresAt };
     });
     ensure(!result.errorCode, result.errorCode, result.errorCode === 'AUTH_LOCKED'
-      ? '登录失败次数过多，请稍后重试' : '身份或口令不正确');
+      ? '登录失败次数过多，请稍后重试' : '身份或密码不正确');
     return result;
   }
 
@@ -129,7 +129,7 @@ class StaffAuthService {
       const previous = await tx.get('staff_credentials', targetOpenid);
       ensure(user && user.active === true && staffRoles.includes(user.role), 'INVALID_STAFF', '目标不是启用的员工账号');
       const passwordVersion = (previous?.passwordVersion || 0) + 1;
-      ensure(Number.isSafeInteger(passwordVersion) && passwordVersion >= 1, 'INVALID_STAFF', '口令版本不合法');
+      ensure(Number.isSafeInteger(passwordVersion) && passwordVersion >= 1, 'INVALID_STAFF', '密码版本不合法');
       await tx.set('staff_credentials', targetOpenid, { passwordHash, passwordVersion,
         failedAttempts: 0, lockedUntil: 0, updatedAt: this.clock() });
       await tx.set('auth_events', auditId, { openid: targetOpenid, action: 'PASSWORD_CHANGED',

@@ -111,7 +111,7 @@ test('网页端 HTTP：顾客注册、会话 Cookie 与用户名唯一性', asyn
   } finally { await app.close(); }
 });
 
-test('网页端 HTTP：弱口令与错误口令分别被拒绝', async () => {
+test('网页端 HTTP：弱密码与错误密码分别被拒绝', async () => {
   const app = await boot();
   try {
     const short = await new Session(app.base).request('POST', '/api/register', { username: 'bobby', password: 'short' });
@@ -306,7 +306,7 @@ test('网页端 HTTP：员工账号停用后不能登录', async () => {
     const disable = await owner.request('POST', '/api/staff/access', { username: 'grace', enabled: false });
     assert.equal(disable.status, 200);
 
-    // 停用账号与口令错误返回同一状态，避免泄露账号状态
+    // 停用账号与密码错误返回同一状态，避免泄露账号状态
     const denied = await new Session(app.base).request('POST', '/api/login', { username: 'grace', password: 'gracepass1234' });
     assert.equal(denied.status, 401);
     assert.equal(denied.body.error.code, 'AUTH_FAILED');

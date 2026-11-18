@@ -3,7 +3,7 @@ const { hashPassword } = require('../../core/domain/passwords');
 const { StaffAuthService } = require('../../core/domain/staff-auth-service');
 const { Repository } = require('./repository');
 
-// 仅测试口令，真实部署必须自行初始化，不存在默认生产账号或口令。
+// 仅测试密码，真实部署必须自行初始化，不存在默认生产账号或密码。
 const DEMO_PASSWORD = 'DemoOnly-Local-Test-2026';
 const initialHash = hashPassword(DEMO_PASSWORD);
 

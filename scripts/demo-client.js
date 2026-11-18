@@ -55,7 +55,7 @@ async function main() {
   const logout = await owner.staff.logout();
   assert.equal(logout.remoteRevoked, true);
   console.log('6. 店主注销：本地会话清除，服务端会话已撤销。');
-  console.log('演示完成；口令与令牌均不输出，进程退出后数据清空。');
+  console.log('演示完成；密码与令牌均不输出，进程退出后数据清空。');
 }
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

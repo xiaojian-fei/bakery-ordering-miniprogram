@@ -66,6 +66,29 @@ class SessionStore {
     });
   }
 
+  /**
+   * 撤销某账号的全部网页会话。keepToken 有值时保留该会话（顾客改密码后继续用当前会话）。
+   * 修改密码后调用，保证其它设备上的登录立即失效。
+   */
+  async revokeAllFor(openid, { keepToken = null } = {}) {
+    if (typeof openid !== 'string' || openid.length === 0) return 0;
+    const keepId = typeof keepToken === 'string' && TOKEN.test(keepToken) ? digest(keepToken) : null;
+    return this.repository.transaction(async tx => {
+      const rows = await tx.query('web_sessions', {
+        filters: [{ field: 'openid', value: openid }],
+        orderBy: [{ field: 'createdAt', direction: 'asc' }], limit: 100
+      });
+      let revoked = 0;
+      for (const row of rows) {
+        if (row.revokedAt !== null) continue;
+        if (keepId && row._id === keepId) continue;
+        await tx.set('web_sessions', row._id, { ...row, revokedAt: this.clock() });
+        revoked += 1;
+      }
+      return revoked;
+    });
+  }
+
   async purgeExpired({ limit = 200 } = {}) {
     return this.repository.transaction(async tx => {
       const now = this.clock();

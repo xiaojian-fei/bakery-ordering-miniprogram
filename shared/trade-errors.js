@@ -1,6 +1,6 @@
 'use strict';
 
-// 页面使用本地文案，不显示原始网络异常、响应正文、口令或令牌。
+// 页面使用本地文案，不显示原始网络异常、响应正文、密码或令牌。
 const hints = Object.freeze({
   INVALID_AFTER_SALE_RECORD: ['售后恢复记录已损坏，请先核对售后状态', 'review'],
   AFTER_SALE_STORAGE_ERROR: ['售后记录无法读写，请检查本地存储后重试', 'review'],
@@ -10,7 +10,7 @@ const hints = Object.freeze({
   FULFILLMENT_RECOVERY_REQUIRED: ['请先核对并重试上次履约操作', 'check_then_retry'],
   UNAUTHENTICATED: ['登录状态已失效，请重新登录', 'login'],
   SESSION_CHANGED: ['登录状态已变化，请重新操作', 'login'],
-  AUTH_FAILED: ['身份或口令不正确', 'edit'],
+  AUTH_FAILED: ['身份或密码不正确', 'edit'],
   AUTH_LOCKED: ['登录失败次数过多，请稍后重试', 'wait'],
   AUTH_RETRY: ['账号配置已变化，请重新登录', 'login'],
   ACCOUNT_DISABLED: ['账号已停用，请联系店主', 'contact'],
@@ -30,7 +30,7 @@ const hints = Object.freeze({
   INVALID_QUANTITY: ['商品数量需为1～99的整数', 'edit'],
   INVALID_AMOUNT: ['金额格式不合法，请重新确认', 'edit'],
   INVALID_DELIVERY: ['配送方式不合法，请重新选择', 'edit'],
-  INVALID_PASSWORD: ['口令不符合要求，请重新填写', 'edit'],
+  INVALID_PASSWORD: ['密码不符合要求，请重新填写', 'edit'],
   RESERVED_STOCK_CONFLICT: ['实物库存不能低于已预留数量', 'refresh'],
   AFTER_SALE_NOT_APPROVED: ['售后尚未通过审核，请刷新', 'refresh'],
   ALREADY_REFUNDED: ['订单已完成整单退款，请刷新', 'refresh'],

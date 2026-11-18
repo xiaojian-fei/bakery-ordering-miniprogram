@@ -68,8 +68,8 @@ async function main() {
     log('');
     log('=== 首个店主账号已创建 ===');
     log(`用户名：${owner.username}`);
-    log(`初始口令：${owner.generatedPassword}`);
-    log('该口令只在本次启动显示一次，请立即登录并修改；也可用 OWNER_PASSWORD 环境变量指定。');
+    log(`初始密码：${owner.generatedPassword}`);
+    log('该密码只在本次启动显示一次，请立即登录并修改；也可用 OWNER_PASSWORD 环境变量指定。');
     log('');
   }
 

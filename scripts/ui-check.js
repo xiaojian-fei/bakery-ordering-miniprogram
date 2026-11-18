@@ -251,6 +251,25 @@ async function main() {
     check('切换分类后高亮跟随所选项',
       categoryChips.active?.length === 1 && categoryChips.active[0] === categoryChips.target, categoryChips.active);
 
+    const passwordPage = await evaluate(cdp, `(async () => {
+      [...document.querySelectorAll('#account button')].find(b => b.textContent === '修改密码').click();
+      await __waitFor(() => /修改密码/.test(document.querySelector('#main h1')?.textContent || ''));
+      const fields = [...document.querySelectorAll('#main input[type=password]')];
+      const count = fields.length;
+      // 故意用错误的当前密码，确认服务端拒绝且页面提示
+      fields[0].value = 'definitely-wrong-password';
+      fields[1].value = 'newpassword123';
+      fields[2].value = 'newpassword123';
+      [...document.querySelectorAll('#main button')].find(b => /保存新密码/.test(b.textContent)).click();
+      await __waitFor(() => /当前密码不正确/.test(__text()), 10000);
+      const hasError = /当前密码不正确/.test(__text());
+      location.hash = '#/';
+      await __waitFor(() => document.querySelectorAll('.product').length > 0);
+      return { count, hasError };
+    })()`);
+    check('修改密码页有三个密码输入框', passwordPage.count === 3, passwordPage.count);
+    check('修改密码：错误的当前密码被拒绝', passwordPage.hasError === true, passwordPage);
+
     // 3. 加入购物车
     const added = await evaluate(cdp, `(async () => {
       [...document.querySelectorAll('.product button')].find(b => b.textContent === '加入购物车').click();
@@ -342,7 +361,7 @@ async function main() {
 
     // 8. 店员登录并接单（履约恢复链路）
     await evaluate(cdp, `(async () => {
-      document.querySelector('#account button').click();
+      [...document.querySelectorAll('#account button')].find(b => b.textContent === '退出').click();
       await __waitFor(() => document.querySelector('.auth form'));
       await __login(${JSON.stringify(STAFF.username)}, ${JSON.stringify(STAFF.password)});
       await __waitFor(() => location.hash === '#/staff' || location.hash.startsWith('#/staff'));
@@ -389,7 +408,7 @@ async function main() {
 
     // 9. 店主登录进入店铺管理
     await evaluate(cdp, `(async () => {
-      document.querySelector('#account button').click();
+      [...document.querySelectorAll('#account button')].find(b => b.textContent === '退出').click();
       await __waitFor(() => document.querySelector('.auth form'));
       await __login(${JSON.stringify(OWNER_USERNAME)}, ${JSON.stringify(OWNER_PASSWORD)});
       await __waitFor(() => location.hash.startsWith('#/owner'));
@@ -416,7 +435,7 @@ async function main() {
 
     // 10. 顾客不得进入店铺管理
     const blocked = await evaluate(cdp, `(async () => {
-      document.querySelector('#account button').click();
+      [...document.querySelectorAll('#account button')].find(b => b.textContent === '退出').click();
       await __waitFor(() => document.querySelector('.auth form'));
       await __login(${JSON.stringify(CUSTOMER.username)}, ${JSON.stringify(CUSTOMER.password)});
       await __waitFor(() => document.querySelectorAll('.product').length > 0);

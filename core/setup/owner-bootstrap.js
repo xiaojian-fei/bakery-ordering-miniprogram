@@ -30,7 +30,7 @@ class OwnerBootstrap {
           && credential.passwordVersion >= 1 && typeof credential.passwordHash === 'string'
           && /^scrypt\$32768\$8\$3\$[0-9a-f]{32}\$[0-9a-f]{64}$/.test(credential.passwordHash),
         'BOOTSTRAP_INCONSISTENT', '初始化标记与账号不一致，需部署管理员核对');
-        // 重试不是重设口令；不返回或替换原有哈希。
+        // 重试不是重设密码；不返回或替换原有哈希。
         return { initialized: true, changed: false };
       }
       ensure(!user && !credential, 'BOOTSTRAP_CONFLICT', '目标账号已有数据，不能自动覆盖或提升权限');
