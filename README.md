@@ -50,7 +50,7 @@ OWNER_USERNAME=owner OWNER_PASSWORD='你的强口令123' npm start
 | 后端 | Node.js 内置 `node:http` 单体服务 | 静态资源、业务接口、上传同源提供 |
 | 数据库 | SQLite（`node:sqlite`） | 单文件、WAL、真实事务；每个集合一张具名表 |
 | 身份 | 用户名 + scrypt 口令 + HttpOnly 会话 Cookie | 员工令牌也只走 Cookie，页面脚本拿不到原文 |
-| 测试 | `node:test` | 255 项，可整体切换真实数据库运行 |
+| 测试 | `node:test` | 267 项，可整体切换真实数据库运行 |
 
 没有第三方运行时依赖，`package.json` 中没有 `dependencies`。
 
@@ -89,8 +89,8 @@ docs/                方案、架构、数据库、运行与验收文档
 ## 验证
 
 ```bash
-npm test              # 255 项：领域 + 仓储 + HTTP + 恢复协议（内存夹具）
-npm run test:sqlite   # 255 项：同一批断言跑在真实 SQLite 上
+npm test              # 267 项：领域 + 仓储 + HTTP + 恢复协议（内存夹具）
+npm run test:sqlite   # 267 项：同一批断言跑在真实 SQLite 上
 npm run smoke         # 28 项端到端：注册→下单→支付→履约→售后→退款→统计→上传
 npm run smoke:verify  # 6 项：重启服务后订单、金额、事件流水仍在
 npm run ui            # 31 项无头浏览器验收（真实下单、支付、找回草稿、店员接单）
@@ -101,7 +101,7 @@ npm run load          # 50 并发抢 10 件库存 + 500 并发查询，验零超
 
 | 项目 | 结果 |
 |---|---|
-| 自动测试（内存夹具 / 真实 SQLite） | **255 / 255**（两种仓储各一遍） |
+| 自动测试（内存夹具 / 真实 SQLite） | **267 / 267**（两种仓储各一遍） |
 | 端到端业务冒烟 | **28 / 28** |
 | 停服重启后持久化 | **6 / 6** |
 | 无头浏览器验收 | **31 / 31**，零前端异常 |

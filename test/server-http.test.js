@@ -238,6 +238,43 @@ test('网页端 HTTP：图片上传校验类型与权限', async () => {
   } finally { await app.close(); }
 });
 
+test('网页端 HTTP：两个顾客的订单互不可见，顾客也不能用员工视角', async () => {
+  const app = await boot();
+  try {
+    const alice = new Session(app.base);
+    await alice.request('POST', '/api/register', { username: 'alice', password: 'alicepass123' });
+    const bob = new Session(app.base);
+    await bob.request('POST', '/api/register', { username: 'bobbb', password: 'bobpass12345' });
+
+    const catalog = await alice.action('catalog.list');
+    const product = catalog.body.data.items[0];
+    const created = await alice.action('orders.create', {
+      requestId: 'iso-alice-0001', deliveryType: 'pickup',
+      items: [{ productId: product._id, quantity: 1 }]
+    });
+    assert.equal(created.body.success, true);
+    const orderId = created.body.data._id;
+
+    assert.equal((await alice.action('orders.get', { orderId })).body.success, true);
+
+    const peek = await bob.action('orders.get', { orderId });
+    assert.equal(peek.status, 403);
+    assert.equal(peek.body.error.code, 'FORBIDDEN');
+
+    const bobList = await bob.action('orders.list', {});
+    assert.equal(bobList.body.data.items.length, 0);
+
+    const bobManage = await bob.action('orders.list', { manage: true });
+    assert.equal(bobManage.status, 403);
+    assert.equal(bobManage.body.error.code, 'FORBIDDEN');
+
+    // 商品与库存对所有已登录顾客可见
+    const bobCatalog = await bob.action('catalog.list');
+    assert.ok(bobCatalog.body.data.items.length >= 1);
+    assert.equal(typeof bobCatalog.body.data.items[0].available, 'number');
+  } finally { await app.close(); }
+});
+
 test('网页端 HTTP：退出登录后会话与员工令牌同时失效', async () => {
   const app = await boot();
   try {
