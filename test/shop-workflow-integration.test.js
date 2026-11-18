@@ -1,8 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { createTradeClient } = require('../services/trade-client');
+const { createApplication } = require('../core/application');
+const { createTradeClient } = require('../shared/trade-client');
 const { authFixture, DEMO_PASSWORD } = require('./support/auth-fixture');
 const { addressInput } = require('./support/shop-fixture');
 

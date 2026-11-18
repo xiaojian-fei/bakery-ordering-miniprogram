@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { shopFixture, buyer, owner, staff } = require('./support/shop-fixture');
-const { MemoryRepository } = require('./support/memory-repository');
-const { StatisticsService } = require('../cloudfunctions/api/domain/statistics-service');
-const { page, collect } = require('../cloudfunctions/api/domain/service-utils');
+const { Repository } = require('./support/repository');
+const { StatisticsService } = require('../core/domain/statistics-service');
+const { page, collect } = require('../core/domain/service-utils');
 const code = expected => error => error.code === expected;
 const range = { startAt: 1000000, endAt: 1001000 };
 
@@ -44,7 +44,7 @@ test('FR-10 按收款/退款各自发生时间统计，允许跨期退款令本�
 test('FR-10 超过100条记录跨页汇总，不受前端一页或筛选页大小影响', async () => {
   const payments = Object.fromEntries(Array.from({ length: 205 }, (_, i) => ['pay-' + String(i).padStart(4, '0'),
     { status: 'SUCCEEDED', mode: 'SIMULATED', amountCents: 100, createdAt: 1000000 }]));
-  const repository = new MemoryRepository({ payments, refunds: {
+  const repository = new Repository({ payments, refunds: {
     'refund-a': { status: 'SUCCEEDED', mode: 'SIMULATED', amountCents: 50, createdAt: 1000000 },
     'refund-b': { status: 'SUCCEEDED', mode: 'SIMULATED', amountCents: 50, createdAt: 1000000 }
   } });
@@ -96,7 +96,7 @@ test('FR-10 损坏财务金额拒绝统计，不静默凑出错误总额', async
 });
 
 test('查询契约：页大小、损坏游标、缺适配器和不前进游标明确拒绝', async () => {
-  const repository = new MemoryRepository();
+  const repository = new Repository();
   await assert.rejects(repository.transaction(tx => page(tx, 'orders', { scope: 'test', limit: 51 })), code('INVALID_REQUEST'));
   await assert.rejects(repository.transaction(tx => page(tx, 'orders', { scope: 'test', cursor: 'not-json' })), code('INVALID_CURSOR'));
   await assert.rejects(page({}, 'orders'), code('INVALID_CONFIG'));

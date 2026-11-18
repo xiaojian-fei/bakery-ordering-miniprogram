@@ -1,6 +1,5 @@
 node_modules/
 **/node_modules/
-project.private.config.json
 .env
 .env.*
 !.env.example
@@ -8,3 +7,6 @@ project.private.config.json
 .DS_Store
 Thumbs.db
 .local/
+
+# 运行时数据：SQLite 数据库、上传图片、通知记录、冒烟状态文件
+data/

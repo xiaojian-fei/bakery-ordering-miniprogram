@@ -1,15 +1,15 @@
 'use strict';
 const { randomBytes } = require('node:crypto');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { hashPassword } = require('../cloudfunctions/api/domain/passwords');
-const { MemoryRepository } = require('../test/support/memory-repository');
-const { OrderExpiryJob } = require('../cloudfunctions/api/jobs/order-expiry-job');
+const { createApplication } = require('../core/application');
+const { hashPassword } = require('../core/domain/passwords');
+const { SqliteRepository } = require('../server/db/sqlite-repository');
+const { OrderExpiryJob } = require('../core/jobs/order-expiry-job');
 
 async function main() {
-  // 纯内存演示：随机口令仅存在于本进程，不是可部署的默认管理员。
+  // 纯内存演示：随机密码仅存在于本进程，不是可部署的默认管理员。
   const password = randomBytes(24).toString('hex');
   const passwordHash = await hashPassword(password);
-  const repository = new MemoryRepository({
+  const repository = new SqliteRepository({
     users: { 'owner-demo': { openid: 'owner-demo', role: 'owner', active: true, authVersion: 0 } },
     staff_credentials: { 'owner-demo': { passwordHash, passwordVersion: 1, failedAttempts: 0, lockedUntil: 0 } },
     products: { bread: { _id: 'bread', name: '演示司康', priceCents: 1250,
@@ -26,7 +26,7 @@ async function main() {
   }
   console.log('本地交易核心演示：虚构身份、内存存储、模拟支付；不连接微信或外部服务。');
   const session = await call('staff.login', { password }, 'owner-demo');
-  console.log('1. 店主完成口令认证，会话令牌不输出。');
+  console.log('1. 店主完成密码认证，会话令牌不输出。');
   const order = await call('orders.create', { requestId: 'demo-checkout-001', deliveryType: 'pickup',
     items: [{ productId: 'bread', quantity: 2 }], totalPrice: 0.01 });
   console.log('2. 创建订单：服务端金额', order.amounts.totalCents, '分，状态', order.status);

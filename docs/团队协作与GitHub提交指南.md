@@ -43,17 +43,19 @@ git config --local user.email "从你自己的 GitHub 邮箱设置页复制的 n
 git config --local pull.ff only
 ```
 
-提交邮箱从 https://github.com/settings/emails 获取。每人使用自己的 noreply 邮箱，保留真实贡献归属。账号登录使用自己的 GitHub 凭证，口令、Token 和数据库文件留在本地。
+提交邮箱从 https://github.com/settings/emails 获取。每人使用自己的 noreply 邮箱，保留真实贡献归属。账号登录使用自己的 GitHub 凭证，密码、Token 和数据库文件留在本地。
 
-当前 main 尚处于 Web 迁移前，现有入口为以下命令，现阶段无需为它们安装项目第三方依赖。
+网页端已经完成迁移，不需要安装任何第三方依赖（`package.json` 没有 dependencies）。提交前执行：
 
 ```powershell
-npm.cmd test
-npm.cmd run demo:workflows
-npm.cmd run preview:local
+npm.cmd test          # 255 项自动测试（内存夹具）
+npm.cmd run test:sqlite   # 同一批断言跑在真实 SQLite 上
+npm.cmd start         # 启动网页端 http://127.0.0.1:8080
 ```
 
-最后一个命令启动旧的浏览器演示工作台，数据保存在内存，重启会清空。正式 Web 入口、安装、构建和数据库初始化命令由骨架 PR 实现后写入 README。届时有 package-lock.json 的目录使用 npm.cmd ci，按 README 分别处理前后端依赖。
+改动前端或 HTTP 层时再加跑 `npm.cmd run smoke`、`npm.cmd run ui`；改并发或库存逻辑时跑
+`npm.cmd run load`（需以 `AUTH_RATE_LIMIT=1000` 启动服务）。详细说明见
+[网页端运行与验收](网页端运行与验收.md)。
 
 ## 4. 一项任务一个分支
 
@@ -91,7 +93,7 @@ git push -u origin codex/web-b-cart
 
 测试按改动范围执行。页面改动检查正常流程、表单错误和刷新恢复；接口或数据库改动检查权限、失败回滚和必要并发行为。公共交易逻辑变动执行全量业务回归。文档改动检查链接、命令和状态描述。
 
-本地配置、.env、Token、口令、真实用户信息、SQLite 文件（含 -wal/-shm）、备份、uploads、node_modules 和构建产物不加入暂存。数据库接入 PR 要先补齐这些路径的忽略规则，同时提交结构迁移和虚构种子脚本。依赖变动提交对应 package.json 与锁文件。
+本地配置、.env、Token、密码、真实用户信息、SQLite 文件（含 -wal/-shm）、备份、uploads、node_modules 和构建产物不加入暂存。数据库接入 PR 要先补齐这些路径的忽略规则，同时提交结构迁移和虚构种子脚本。依赖变动提交对应 package.json 与锁文件。
 
 ## 6. PR、审核与合并
 

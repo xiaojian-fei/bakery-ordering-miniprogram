@@ -1,14 +1,14 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { randomBytes } = require('node:crypto');
-const { createTradeClient } = require('../services/trade-client');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { hashPassword } = require('../cloudfunctions/api/domain/passwords');
-const { MemoryRepository } = require('../test/support/memory-repository');
+const { createTradeClient } = require('../shared/trade-client');
+const { createApplication } = require('../core/application');
+const { hashPassword } = require('../core/domain/passwords');
+const { SqliteRepository } = require('../server/db/sqlite-repository');
 
 async function main() {
   const password = randomBytes(24).toString('hex');
-  const repository = new MemoryRepository({
+  const repository = new SqliteRepository({
     users: { 'owner-demo': { openid: 'owner-demo', role: 'owner', active: true, authVersion: 0 } },
     staff_credentials: { 'owner-demo': { passwordHash: await hashPassword(password),
       passwordVersion: 1, failedAttempts: 0, lockedUntil: 0 } },
@@ -55,7 +55,7 @@ async function main() {
   const logout = await owner.staff.logout();
   assert.equal(logout.remoteRevoked, true);
   console.log('6. 店主注销：本地会话清除，服务端会话已撤销。');
-  console.log('演示完成；口令与令牌均不输出，进程退出后数据清空。');
+  console.log('演示完成；密码与令牌均不输出，进程退出后数据清空。');
 }
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

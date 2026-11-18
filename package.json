@@ -1,18 +1,22 @@
 {
-  "name": "bakery-ordering-miniprogram",
-  "version": "0.1.0",
+  "name": "bakery-ordering-web",
+  "version": "1.0.0",
   "private": true,
-  "description": "小程序交易核心的本地验证入口，不启动微信运行环境",
+  "description": "烘焙商品预订与订单管理系统的网页端：Node.js + SQLite + 浏览器原生 ES 模块前端，零第三方依赖",
   "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
     "test": "node scripts/run-tests.js",
+    "test:sqlite": "node scripts/run-tests.js --sqlite",
+    "smoke": "node scripts/smoke-web.js run",
+    "smoke:verify": "node scripts/smoke-web.js verify",
+    "ui": "node scripts/ui-check.js",
     "demo:core": "node scripts/demo-core.js",
     "demo:client": "node scripts/demo-client.js",
-    "demo:setup": "node scripts/demo-setup.js",
-    "demo:workflows": "node scripts/demo-workflows.js",
-    "demo:miniapp": "node scripts/demo-miniapp-pages.js",
-    "preview:local": "node scripts/local-workbench.js",
-    "preview:miniapp": "node scripts/local-miniapp-preview.js",
-    "prepare:legacy": "node scripts/prepare-legacy-data.js"
+    "shots": "node scripts/screenshots.js",
+    "load": "node scripts/load-test.js"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=24"
+  }
 }

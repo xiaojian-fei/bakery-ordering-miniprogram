@@ -1,3 +1,0 @@
-.statistics { padding: 24rpx; }
-.statistics-card { margin: 20rpx 0; padding: 24rpx; border: 1px solid #e6ddd7; border-radius: 12rpx; }
-.statistics-card view { margin-bottom: 12rpx; }

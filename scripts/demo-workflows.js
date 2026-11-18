@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { createLocalDemo } = require('./local-demo-fixture');
-const { NotificationJob } = require('../cloudfunctions/api/jobs/notification-job');
+const { NotificationJob } = require('../core/jobs/notification-job');
 
 async function main() {
   const demo = await createLocalDemo();

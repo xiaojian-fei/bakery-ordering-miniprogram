@@ -1,10 +1,10 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { OrderService } = require('../cloudfunctions/api/domain/order-service');
-const { RefundService } = require('../cloudfunctions/api/domain/refund-service');
-const { STATUS } = require('../cloudfunctions/api/domain/order-state');
-const { MemoryRepository } = require('./support/memory-repository');
+const { OrderService } = require('../core/domain/order-service');
+const { RefundService } = require('../core/domain/refund-service');
+const { STATUS } = require('../core/domain/order-state');
+const { Repository } = require('./support/repository');
 
 const buyer = { openid: 'buyer-demo', role: 'customer' };
 const owner = { openid: 'owner-demo', role: 'owner', staffVerified: true };
@@ -13,7 +13,7 @@ const code = expected => error => error.code === expected;
 const rows = (repository, table) => Object.values(repository.snapshot()[table] || {});
 
 async function fixture({ paid = true, delivery = false } = {}) {
-  const repository = new MemoryRepository({
+  const repository = new Repository({
     products: { bread: { _id: 'bread', name: '测试司康', priceCents: 1250, isOnSale: true,
       onHand: 10, reserved: 0, inventoryVersion: 0 } },
     addresses: { home: { _id: 'home', ownerOpenid: buyer.openid, name: '测试顾客', phone: 'TEST-PHONE',

@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTradeClient, TradeApiError } = require('../services/trade-client');
+const { createTradeClient, TradeApiError } = require('../shared/trade-client');
 
 const tokenA = 'a'.repeat(64);
 const tokenB = 'b'.repeat(64);
@@ -27,7 +27,7 @@ test('客户端：显式业务动作和字段白名单，身份/角色/伪造令
   assert.equal(client.orders.expire, undefined);
 });
 
-test('客户端：口令登录仅返回会话摘要，令牌只在内部内存及发送封装中', async () => {
+test('客户端：密码登录仅返回会话摘要，令牌只在内部内存及发送封装中', async () => {
   const sent = [];
   const client = createTradeClient({ clock: () => 1000, send: async request => {
     sent.push(request);

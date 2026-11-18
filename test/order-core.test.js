@@ -1,11 +1,11 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { OrderService } = require('../cloudfunctions/api/domain/order-service');
-const { normalizeItems, calculateQuote } = require('../cloudfunctions/api/domain/pricing');
-const { STATUS, nextStatus } = require('../cloudfunctions/api/domain/order-state');
-const { requireRole } = require('../cloudfunctions/api/domain/auth');
-const { MemoryRepository } = require('./support/memory-repository');
+const { OrderService } = require('../core/domain/order-service');
+const { normalizeItems, calculateQuote } = require('../core/domain/pricing');
+const { STATUS, nextStatus } = require('../core/domain/order-state');
+const { requireRole } = require('../core/domain/auth');
+const { Repository } = require('./support/repository');
 
 const customer = { openid: 'customer-a', role: 'customer' };
 const another = { openid: 'customer-b', role: 'customer' };
@@ -17,7 +17,7 @@ const records = (repo, table) => Object.values(repo.snapshot()[table] || {});
 
 function fixture() {
   let now = 1000000;
-  const repo = new MemoryRepository({
+  const repo = new Repository({
     products: {
       berry: { _id: 'berry', name: '演示司康', priceCents: 1190, isOnSale: true, onHand: 5, reserved: 0 },
       cookie: { _id: 'cookie', name: '演示饼干', priceCents: 890, isOnSale: true, onHand: 2, reserved: 0 }

@@ -1,13 +1,13 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { STATUS } = require('../cloudfunctions/api/domain/order-state');
+const { createApplication } = require('../core/application');
+const { STATUS } = require('../core/domain/order-state');
 const { authFixture, DEMO_PASSWORD } = require('./support/auth-fixture');
 
 async function fixture() {
   const base = await authFixture();
-  // 假身份解析仅在测试存在；真实传输适配器必须验证微信上下文或服务端会话。
+  // 假身份解析仅在测试存在；真实传输适配器（server/http.js）只信任服务端会话解析出的 openid。
   const application = createApplication({ repository: base.repository, clock: base.clock,
     resolveIdentity: async context => ({ openid: context?.verifiedSubject, role: 'owner' }) });
   const call = (action, data, openid = 'buyer-demo', staffToken) => application.handle(
@@ -86,7 +86,7 @@ test('统一入口：不通过默认身份降级掩盖错误，不泄露内部�
   assert.ok(!JSON.stringify(response).includes('internal-sensitive-detail'));
 });
 
-test('统一入口：店主授权和设置口令后，新员工只能得到店员权限', async () => {
+test('统一入口：店主授权和设置密码后，新员工只能得到店员权限', async () => {
   const { call } = await fixture();
   const ownerLogin = await call('staff.login', { password: DEMO_PASSWORD }, 'owner-demo');
   const token = ownerLogin.data.token;

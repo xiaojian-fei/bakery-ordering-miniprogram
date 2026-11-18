@@ -1,9 +1,9 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createCheckoutRecovery } = require('../services/checkout-recovery');
-const { createTradeClient } = require('../services/trade-client');
-const { createApplication } = require('../cloudfunctions/api/application');
+const { createCheckoutRecovery } = require('../shared/checkout-recovery');
+const { createTradeClient } = require('../shared/trade-client');
+const { createApplication } = require('../core/application');
 const { shopFixture } = require('./support/shop-fixture');
 
 const input = (change = {}) => ({ requestId: 'recovery-checkout-001', deliveryType: 'pickup',
@@ -116,7 +116,7 @@ test('结算恢复：身份隔离，切换主体不能提交其他账号的草�
   assert.equal(Object.keys(repository.snapshot().orders || {}).length, 0);
 });
 
-test('结算恢复：持久化白名单不包含口令、令牌、身份标记或任意请求字段', async () => {
+test('结算恢复：持久化白名单不包含密码、令牌、身份标记或任意请求字段', async () => {
   const { recover, values } = fixture();
   await recover().prepare(input({ password: 'must-not-store', staffToken: 'must-not-store', role: 'owner', actor: { trustedSystem: true } }));
   const saved = JSON.stringify([...values.values()]);

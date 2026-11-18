@@ -1,15 +1,15 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { InventoryService } = require('../cloudfunctions/api/domain/inventory-service');
-const { OrderService } = require('../cloudfunctions/api/domain/order-service');
-const { MemoryRepository } = require('./support/memory-repository');
+const { InventoryService } = require('../core/domain/inventory-service');
+const { OrderService } = require('../core/domain/order-service');
+const { Repository } = require('./support/repository');
 const code = value => error => error.code === value;
 const owner = { openid: 'owner-demo', role: 'owner', staffVerified: true };
 const customer = { openid: 'buyer-demo', role: 'customer' };
 
 function fixture() {
-  const repository = new MemoryRepository({ products: {
+  const repository = new Repository({ products: {
     bread: { _id: 'bread', name: '测试商品', isOnSale: true, priceCents: 1250,
       onHand: 10, reserved: 0, inventoryVersion: 0 }
   } });
