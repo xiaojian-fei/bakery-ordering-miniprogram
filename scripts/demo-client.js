@@ -1,14 +1,14 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { randomBytes } = require('node:crypto');
-const { createTradeClient } = require('../services/trade-client');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { hashPassword } = require('../cloudfunctions/api/domain/passwords');
-const { MemoryRepository } = require('../test/support/memory-repository');
+const { createTradeClient } = require('../shared/trade-client');
+const { createApplication } = require('../core/application');
+const { hashPassword } = require('../core/domain/passwords');
+const { SqliteRepository } = require('../server/db/sqlite-repository');
 
 async function main() {
   const password = randomBytes(24).toString('hex');
-  const repository = new MemoryRepository({
+  const repository = new SqliteRepository({
     users: { 'owner-demo': { openid: 'owner-demo', role: 'owner', active: true, authVersion: 0 } },
     staff_credentials: { 'owner-demo': { passwordHash: await hashPassword(password),
       passwordVersion: 1, failedAttempts: 0, lockedUntil: 0 } },

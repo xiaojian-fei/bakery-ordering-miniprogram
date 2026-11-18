@@ -1,3 +1,0 @@
-.shop-settings { padding: 24rpx; }
-.shop-settings input, .shop-settings textarea { width: 100%; box-sizing: border-box; padding: 12rpx; margin: 12rpx 0; background: #fff; }
-.shop-settings textarea { height: 160rpx; }

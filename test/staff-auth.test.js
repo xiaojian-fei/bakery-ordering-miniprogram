@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { hashPassword, verifyPassword } = require('../cloudfunctions/api/domain/passwords');
+const { hashPassword, verifyPassword } = require('../core/domain/passwords');
 const { authFixture, DEMO_PASSWORD } = require('./support/auth-fixture');
 const code = expected => error => error.code === expected;
 const owner = { openid: 'owner-demo', role: 'owner', staffVerified: true };

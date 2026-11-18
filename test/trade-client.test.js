@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTradeClient, TradeApiError } = require('../services/trade-client');
+const { createTradeClient, TradeApiError } = require('../shared/trade-client');
 
 const tokenA = 'a'.repeat(64);
 const tokenB = 'b'.repeat(64);

@@ -2,10 +2,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { shopFixture, buyer, other, owner, staff, addressInput } = require('./support/shop-fixture');
-const { ShopService } = require('../cloudfunctions/api/domain/shop-service');
-const { NotificationService } = require('../cloudfunctions/api/domain/notification-service');
-const { NotificationJob } = require('../cloudfunctions/api/jobs/notification-job');
-const { DEFAULT_SHIPPING } = require('../cloudfunctions/api/domain/pricing');
+const { ShopService } = require('../core/domain/shop-service');
+const { NotificationService } = require('../core/domain/notification-service');
+const { NotificationJob } = require('../core/jobs/notification-job');
+const { DEFAULT_SHIPPING } = require('../core/domain/pricing');
 const code = expected => error => error.code === expected;
 const checkout = requestId => ({ requestId, deliveryType: 'pickup', items: [{ productId: 'bread', quantity: 1 }] });
 const shopInput = (change = {}) => ({ requestId: 'shop-save-001', expectedVersion: 0, name: '测试烘焙店',

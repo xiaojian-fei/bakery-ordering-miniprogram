@@ -1,31 +1,28 @@
 /*
- * Eslint config file
- * Documentation: https://eslint.org/docs/user-guide/configuring/
- * Install the Eslint extension before using this feature.
+ * 代码风格参考配置（仓库不依赖 eslint，装了 ESLint 才会生效）。
+ * core/ shared/ server/ scripts/ test/ 为 Node 环境，web/ 为浏览器 ES 模块环境。
  */
 module.exports = {
-  env: {
-    es6: true,
-    browser: true,
-    node: true,
+  root: true,
+  env: { es2022: true },
+  parserOptions: { ecmaVersion: 2022, sourceType: 'script' },
+  extends: [],
+  rules: {
+    'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    'no-undef': 'error',
+    eqeqeq: ['error', 'smart'],
+    'prefer-const': 'warn'
   },
-  ecmaFeatures: {
-    modules: true,
-  },
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-  },
-  globals: {
-    wx: true,
-    App: true,
-    Page: true,
-    getCurrentPages: true,
-    getApp: true,
-    Component: true,
-    requirePlugin: true,
-    requireMiniProgram: true,
-  },
-  // extends: 'eslint:recommended',
-  rules: {},
-}
+  overrides: [
+    {
+      files: ['core/**/*.js', 'shared/**/*.js', 'server/**/*.js', 'scripts/**/*.js', 'test/**/*.js'],
+      env: { node: true, browser: false },
+      parserOptions: { sourceType: 'script' }
+    },
+    {
+      files: ['web/**/*.js'],
+      env: { browser: true, node: false },
+      parserOptions: { sourceType: 'module', ecmaVersion: 2022 }
+    }
+  ]
+};

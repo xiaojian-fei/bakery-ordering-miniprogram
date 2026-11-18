@@ -1,10 +1,10 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { OrderExpiryJob } = require('../cloudfunctions/api/jobs/order-expiry-job');
-const { OrderService } = require('../cloudfunctions/api/domain/order-service');
-const { STATUS } = require('../cloudfunctions/api/domain/order-state');
-const { MemoryRepository } = require('./support/memory-repository');
+const { OrderExpiryJob } = require('../core/jobs/order-expiry-job');
+const { OrderService } = require('../core/domain/order-service');
+const { STATUS } = require('../core/domain/order-state');
+const { Repository } = require('./support/repository');
 
 const buyer = { openid: 'buyer-demo', role: 'customer' };
 const system = { openid: 'expiry-job', role: 'system', trustedSystem: true };
@@ -13,7 +13,7 @@ const rows = (repository, table) => Object.values(repository.snapshot()[table] |
 
 async function fixture(count = 5) {
   let now = 1000000;
-  const repository = new MemoryRepository({ products: { bread: { _id: 'bread', name: '测试商品',
+  const repository = new Repository({ products: { bread: { _id: 'bread', name: '测试商品',
     priceCents: 1250, isOnSale: true, onHand: 100, reserved: 0, inventoryVersion: 0 } } });
   const clock = () => now;
   const orders = new OrderService(repository, { clock });

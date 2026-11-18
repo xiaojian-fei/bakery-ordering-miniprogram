@@ -1,18 +1,18 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { OwnerBootstrap } = require('../cloudfunctions/api/setup/owner-bootstrap');
-const { StaffAuthService } = require('../cloudfunctions/api/domain/staff-auth-service');
-const { verifyPassword } = require('../cloudfunctions/api/domain/passwords');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { MemoryRepository } = require('./support/memory-repository');
+const { OwnerBootstrap } = require('../core/setup/owner-bootstrap');
+const { StaffAuthService } = require('../core/domain/staff-auth-service');
+const { verifyPassword } = require('../core/domain/passwords');
+const { createApplication } = require('../core/application');
+const { Repository } = require('./support/repository');
 
 // 仅测试使用；部署没有默认口令。
 const password = 'DemoOnly-Bootstrap-2026';
 const input = () => ({ ownerOpenid: 'owner-demo', password });
 const code = expected => error => error.code === expected;
 function fixture(seed) {
-  const repository = new MemoryRepository(seed);
+  const repository = new Repository(seed);
   return { repository, bootstrap: new OwnerBootstrap(repository, { clock: () => 1000000 }) };
 }
 

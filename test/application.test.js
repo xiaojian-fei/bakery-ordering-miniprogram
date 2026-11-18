@@ -1,8 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createApplication } = require('../cloudfunctions/api/application');
-const { STATUS } = require('../cloudfunctions/api/domain/order-state');
+const { createApplication } = require('../core/application');
+const { STATUS } = require('../core/domain/order-state');
 const { authFixture, DEMO_PASSWORD } = require('./support/auth-fixture');
 
 async function fixture() {

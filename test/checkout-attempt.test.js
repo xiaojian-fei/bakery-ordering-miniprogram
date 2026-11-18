@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTradeClient } = require('../services/trade-client');
+const { createTradeClient } = require('../shared/trade-client');
 
 const input = () => ({ requestId: 'checkout-intent-001', deliveryType: 'pickup',
   items: [{ productId: 'bread', quantity: 2 }], remark: '演示备注' });

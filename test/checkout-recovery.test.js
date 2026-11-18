@@ -1,9 +1,9 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createCheckoutRecovery } = require('../services/checkout-recovery');
-const { createTradeClient } = require('../services/trade-client');
-const { createApplication } = require('../cloudfunctions/api/application');
+const { createCheckoutRecovery } = require('../shared/checkout-recovery');
+const { createTradeClient } = require('../shared/trade-client');
+const { createApplication } = require('../core/application');
 const { shopFixture } = require('./support/shop-fixture');
 
 const input = (change = {}) => ({ requestId: 'recovery-checkout-001', deliveryType: 'pickup',
