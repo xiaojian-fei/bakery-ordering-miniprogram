@@ -8,7 +8,10 @@
  * 只依赖 Node 内置能力（fetch + WebSocket）与系统里的 chromium，不需要 puppeteer。
  */
 const { spawn } = require('node:child_process');
+const { once } = require('node:events');
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const BASE = process.env.SMOKE_BASE || 'http://127.0.0.1:8080';
 const PORT = Number(process.env.CDP_PORT || 9333);
@@ -197,13 +200,19 @@ true;`;
 async function main() {
   const { customer, openid } = await prepareAccounts();
 
-  const profile = fs.mkdtempSync('/tmp/ui-profile-');
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bakery-ui-profile-'));
+  const profileStats = fs.lstatSync(profile);
+  if (!profileStats.isDirectory() || profileStats.isSymbolicLink()) throw new Error('浏览器临时目录无效');
+  const profilePath = fs.realpathSync(profile);
+  if (path.dirname(profilePath) !== fs.realpathSync(os.tmpdir())) throw new Error('浏览器临时目录不在系统临时目录中');
   const chromium = spawn(process.env.CHROMIUM || 'chromium', [
     '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
     '--window-size=1280,960', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, 'about:blank'
   ], { stdio: 'ignore' });
+  const closed = new Promise(resolve => chromium.once('close', resolve));
 
   try {
+    await once(chromium, 'spawn');
     await waitForDevtools();
     const cdp = await connect((await pageTarget()).webSocketDebuggerUrl);
     await cdp.send('Page.enable');
@@ -452,7 +461,8 @@ async function main() {
     console.log(`\n通过 ${passed} 项浏览器检查`);
   } finally {
     chromium.kill('SIGKILL');
-    fs.rmSync(profile, { recursive: true, force: true });
+    await closed;
+    await fs.promises.rm(profilePath, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
   }
 }
 
