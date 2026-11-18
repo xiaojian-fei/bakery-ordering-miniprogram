@@ -17,7 +17,9 @@ const MODULES = Object.freeze([
 const EXPORTS = Object.freeze({
   createTradeClient: ['./trade-client', 'createTradeClient'],
   TradeApiError: ['./trade-client', 'TradeApiError'],
-  createCheckoutRecovery: ['./checkout-recovery', 'createCheckoutRecovery']
+  createCheckoutRecovery: ['./checkout-recovery', 'createCheckoutRecovery'],
+  createFulfillmentRecovery: ['./fulfillment-recovery', 'createFulfillmentRecovery'],
+  createAfterSaleRecovery: ['./after-sale-recovery', 'createAfterSaleRecovery']
 });
 
 async function buildClientBundle(root) {

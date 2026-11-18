@@ -1,4 +1,4 @@
-import { el, clear, money, pageHead, empty, errorToast, toast, requestId, busy } from '../ui.js';
+import { el, clear, money, pageHead, empty, errorToast, toast, requestId } from '../ui.js';
 
 export async function render(ctx, mount, param, route) {
   if (route === 'checkout') return checkout(ctx, mount);
@@ -127,6 +127,8 @@ async function checkout(ctx, mount) {
   const summaryBox = el('div', { class: 'summary' });
   const addressBox = el('div', {});
   const submit = el('button', { class: 'primary' }, '提交订单');
+  // 存在未确认草稿时锁定提交；报价完成后不能把它重新解禁。
+  let submitLocked = false;
   const remark = el('textarea', { placeholder: '备注（选填，最多 200 字）' });
 
   const quote = async () => {
@@ -146,7 +148,7 @@ async function checkout(ctx, mount) {
         el('span', {}, data.shippingCents > 0 ? money(data.shippingCents) : '包邮')));
       summaryBox.appendChild(el('div', { class: 'total' },
         el('span', {}, '应付总额'), el('span', {}, money(data.totalCents))));
-      submit.disabled = false;
+      submit.disabled = submitLocked;
     } catch (error) {
       clear(summaryBox).appendChild(el('div', {}, el('span', {}, error.message || '报价失败'), el('span', {}, '')));
       submit.disabled = true;
@@ -188,28 +190,47 @@ async function checkout(ctx, mount) {
     if (deliveryType === 'delivery' && !addressId) { toast('请选择收货地址', 'error'); return; }
     submit.disabled = true;
     submit.textContent = '提交中…';
+    const recovery = ctx.recovery().checkout;
     try {
-      // 一次人工确认的结算意图：同一 requestId 重试不会重复下单。
-      const attempt = await ctx.api.prepareCheckout({
+      // 先落草稿再发送：断网或关闭页面后可用同一 requestId 找回，不会重复下单。
+      const attempt = await recovery.prepare({
         requestId: requestId(), items, deliveryType,
         ...(deliveryType === 'delivery' ? { addressId } : {}),
         ...(remark.value.trim() ? { remark: remark.value.trim() } : {})
       });
       const order = await attempt.submit();
+      const status = attempt.getRecoveryStatus();
+      try { await recovery.discard({ confirmedOrderId: order._id }); } catch (_) { /* 草稿残留不阻塞下单结果 */ }
       await ctx.api.cart.clear({ expectedVersion: cartData.version, requestId: requestId() });
       await ctx.refreshCartCount();
-      toast('下单成功，请在 15 分钟内完成支付', 'ok');
+      toast(status.storageWarning ? '下单成功；本机草稿未能自动清除，请稍后手动清理' : '下单成功，请在 15 分钟内完成支付',
+        status.storageWarning ? 'error' : 'ok');
       ctx.navigate('#/order/' + order._id);
     } catch (error) {
       errorToast(error);
       submit.disabled = false;
       submit.textContent = '提交订单';
+      // 结果不明或存在待确认草稿时，刷新出找回入口，避免用户以为没下成功而重复提交。
+      if (error.code === 'CHECKOUT_RECOVERY_REQUIRED' || error.uncertain === true) {
+        setTimeout(() => checkout(ctx, mount), 800);
+      }
     }
   });
 
   clear(mount);
   mount.appendChild(el('p', { style: 'margin:0 0 14px' }, el('a', { href: '#/cart' }, '← 返回购物车')));
   mount.appendChild(pageHead('确认订单', '配送按省份计算运费，满额包邮。'));
+
+  // 上次结算如果中断在这里，先让用户确认，再决定是否开新的结算。
+  let draft = null;
+  try { draft = await ctx.recovery().checkout.inspect(); }
+  catch (error) { toast(error.message || '本机草稿不可读', 'error'); }
+  if (draft) {
+    submitLocked = true;
+    mount.appendChild(draftBanner(ctx, draft, () => checkout(ctx, mount)));
+    submit.disabled = true;
+    submit.textContent = '请先处理上次的结算';
+  }
 
   mount.appendChild(el('div', { class: 'card' },
     el('h2', {}, '履约方式'),
@@ -227,4 +248,74 @@ async function checkout(ctx, mount) {
 
   drawAddress();
   await quote();
+}
+const DRAFT_TEXT = {
+  PREPARED: ['有一份尚未提交的结算', '上次填好的订单还没有提交，可以继续提交，也可以放弃后重新选购。'],
+  SUBMITTING: ['上次提交结果未确认', '请求已发出但没有收到确认。请先核对，再决定是否用同一请求重试，避免重复下单。'],
+  UNCERTAIN: ['上次提交结果未确认', '网络或服务异常导致结果不明。重试会复用原请求，不会产生第二张订单。'],
+  CONFIRMED: ['上次结算已成功', '订单已经创建成功但页面没有跟上，可以直接查看该订单。'],
+  REJECTED: ['上次结算已被拒绝', '上次提交被服务端明确拒绝，可以放弃这份草稿后重新结算。']
+};
+
+function draftBanner(ctx, draft, reload) {
+  const [title, message] = DRAFT_TEXT[draft.state] || ['存在未完成的结算', '请先处理本机草稿。'];
+  const actions = el('div', { class: 'actions', style: 'margin-top:12px' });
+
+  const resolve = button => {
+    button.disabled = true;
+    return {
+      done: () => { button.disabled = false; },
+      fail: error => { errorToast(error); button.disabled = false; }
+    };
+  };
+
+  if (draft.state === 'CONFIRMED' && draft.orderId) {
+    actions.appendChild(el('button', {
+      class: 'primary',
+      onclick: async () => {
+        const kit = resolve(actions.firstChild);
+        try {
+          await ctx.recovery().checkout.discard({ confirmedOrderId: draft.orderId });
+          ctx.navigate('#/order/' + draft.orderId);
+        } catch (error) { kit.fail(error); }
+      }
+    }, '查看该订单'));
+  }
+
+  if (draft.state !== 'REJECTED') {
+    actions.appendChild(el('button', {
+      class: 'primary',
+      onclick: async () => {
+        const kit = resolve(actions.firstChild);
+        try {
+          const attempt = await ctx.recovery().checkout.restore();
+          if (!attempt) throw new Error('草稿已不存在，请刷新');
+          const order = await attempt.submit();
+          try { await ctx.recovery().checkout.discard({ confirmedOrderId: order._id }); } catch (_) { /* 忽略清理失败 */ }
+          toast('已找回并提交成功', 'ok');
+          ctx.navigate('#/order/' + order._id);
+        } catch (error) { kit.fail(error); }
+      }
+    }, draft.state === 'CONFIRMED' ? '重新核对并获取订单' : '重试找回（复用原请求）'));
+  }
+
+  actions.appendChild(el('button', {
+    class: 'danger',
+    onclick: async () => {
+      const uncertain = ['SUBMITTING', 'UNCERTAIN'].includes(draft.state);
+      const question = uncertain
+        ? '放弃后不再保留这次请求的记录。如果服务端其实已经创建了订单，它会出现在「我的订单」里。确定放弃？'
+        : '放弃这份结算草稿？';
+      if (!window.confirm(question)) return;
+      const kit = resolve(actions.lastChild);
+      try {
+        await ctx.recovery().checkout.discard({ acknowledgeUncertain: uncertain });
+        toast('已放弃本机草稿', 'ok');
+        reload();
+      } catch (error) { kit.fail(error); }
+    }
+  }, '放弃草稿'));
+
+  return el('div', { class: 'card', style: 'border-color:#e3c3bd;background:#fdf6f4' },
+    el('h2', {}, title), el('p', { style: 'margin:0;color:#6b5a46' }, message), actions);
 }

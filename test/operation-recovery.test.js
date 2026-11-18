@@ -199,3 +199,25 @@ test('履约恢复与售后恢复共用同一套存储契约', async () => {
     orderId: 'ord_1', requestId: 'req-11223344', reason: 'x'
   } }), (error) => error.code === 'INVALID_AFTER_SALE_RECORD');
 });
+test('恢复协议：放弃记录必须显式确认，未确认时拒绝并保留记录', async () => {
+  const { recovery, storage } = harness();
+  await recovery.prepare({ action: 'accept', payload: { orderId: 'ord_1' } });
+  await assert.rejects(recovery.discard(),
+    (error) => error.code === 'FULFILLMENT_RECOVERY_REQUIRED');
+  assert.equal(storage.data.size, 1, '未确认时不能丢记录');
+  const result = await recovery.discard({ acknowledgeUncertain: true });
+  assert.equal(result.discarded, true);
+  assert.equal(storage.data.size, 0);
+  assert.equal(await recovery.inspect(), null);
+});
+
+test('恢复协议：记录损坏时只有明确确认才能清理', async () => {
+  const storage = memoryStorage({
+    'bakery.checkout.v1:fulfillment:buyer-1': { schema: 1, subjectId: 'other-user', command: {} }
+  });
+  const { recovery } = harness({ storage });
+  await assert.rejects(recovery.discard(), (error) => error.code === 'INVALID_FULFILLMENT_RECORD');
+  const cleared = await recovery.discard({ acknowledgeUncertain: true });
+  assert.equal(cleared.discarded, true);
+  assert.equal(storage.data.size, 0);
+});

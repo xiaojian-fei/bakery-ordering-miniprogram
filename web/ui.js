@@ -114,21 +114,7 @@ export function requestId() {
   return 'req-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
 }
 
-/** 用统一忙碌态包裹异步点击：执行期间禁用按钮，避免重复提交。 */
-export function busy(button, work) {
-  return async (...args) => {
-    if (button.disabled) return;
-    button.disabled = true;
-    try {
-      return await work(...args);
-    } catch (error) {
-      errorToast(error);
-    } finally {
-      button.disabled = false;
-    }
-  };
-}
-/** 从接口错误响应里取可读文案，兼容 {error:{code,message}} 与客户端 SDK 的异常。 */
+/** 从接口错误响应里取可读文案，兼容 {error:{code,message}} 与扁平 message。 */
 export function apiError(body, fallback = '操作未完成，请稍后重试') {
   if (body && body.error && typeof body.error === 'object' && body.error.message) return body.error.message;
   if (body && typeof body.message === 'string' && body.message) return body.message;

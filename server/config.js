@@ -40,6 +40,9 @@ function loadConfig(env = process.env, overrides = {}) {
     maxBodyBytes: integer(env, 'MAX_BODY_KB', 256, 16, 4096) * 1024,
     maxUploadBytes: integer(env, 'MAX_UPLOAD_KB', 2048, 64, 10240) * 1024,
     jobsIntervalMs: integer(env, 'JOBS_INTERVAL_SECONDS', 60, 0, 3600) * 1000,
+    // 注册与登录的按来源限流；压测或批量开号时可临时放宽。
+    authRateLimit: integer(env, 'AUTH_RATE_LIMIT', 20, 1, 100000),
+    authRateWindowMs: integer(env, 'AUTH_RATE_WINDOW_SECONDS', 300, 1, 86400) * 1000,
     secureCookies: env.SECURE_COOKIES === '1',
     cookieName: 'bakery_sid',
     staffCookieName: 'bakery_staff',

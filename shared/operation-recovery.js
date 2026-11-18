@@ -67,6 +67,20 @@ function createOperationRecovery({ runtime, storage, scope, normalize, send, val
       let storageWarning = false;
       try { await remove(original); } catch (_) { storageWarning = true; }
       return { result, storageWarning };
+    },
+    /**
+     * 显式放弃本机记录。必须带 acknowledgeUncertain=true：宁可让用户确认一次，
+     * 也不要在结果未知时静默丢掉"可能已经执行"的原始请求。
+     */
+    async discard({ acknowledgeUncertain = false } = {}) {
+      await identify();
+      const record = await read().catch(error => {
+        if (error.code === errors.invalid && acknowledgeUncertain === true) return null;
+        throw error;
+      });
+      if (record && acknowledgeUncertain !== true) throw new TradeApiError(errors.pending);
+      await guard(() => storage.remove(key));
+      return { discarded: true };
     }
   };
 }

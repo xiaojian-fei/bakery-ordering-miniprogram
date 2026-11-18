@@ -1,4 +1,4 @@
-import { el, clear, field, errorToast, toast } from '../ui.js';
+import { el, clear, field, toast } from '../ui.js';
 
 const USERNAME_HINT = '3～32 位字母、数字或 _ . -';
 

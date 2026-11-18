@@ -6,8 +6,12 @@ import * as orders from './views/orders.js';
 import * as staff from './views/staff.js';
 import * as owner from './views/owner.js';
 import { el, clear, toast, errorToast, apiError } from './ui.js';
+import { createBrowserStorage } from './storage.js';
 
 const state = { session: null, api: null, cartCount: 0, loading: false };
+const CHECKOUT_NAMESPACE = 'bakery.checkout.v1';
+// 恢复模块的存储由浏览器提供；不可用时读写会抛错并被映射成存储错误提示。
+const storage = createBrowserStorage();
 
 const ROUTES = [
   { pattern: /^\/?$/, view: catalog, route: 'catalog', nav: '商品', open: true },
@@ -79,6 +83,32 @@ function onSessionLost() {
 
 const ctx = {
   get api() { return state.api; },
+  /**
+   * 恢复工具集：把“先记录后发送”的三条路径接到浏览器存储上。
+   * runtime 只提供可信身份与客户端，恢复模块本身不感知平台。
+   */
+  recovery() {
+    const session = state.session;
+    const api = state.api;
+    const TradeApiError = window.Bakery.TradeApiError;
+    const runtime = {
+      client: api,
+      subjectId: session.openid,
+      checkoutNamespace: CHECKOUT_NAMESPACE,
+      async assertIdentity() {
+        const actor = await api.identity.me();
+        if (actor?.openid !== session.openid) throw new TradeApiError('SESSION_CHANGED');
+      }
+    };
+    return {
+      checkout: window.Bakery.createCheckoutRecovery({
+        client: api, storage, subjectId: session.openid, namespace: CHECKOUT_NAMESPACE
+      }),
+      fulfillment: window.Bakery.createFulfillmentRecovery({ runtime, storage }),
+      afterSale: window.Bakery.createAfterSaleRecovery({ runtime, storage }),
+      ownerAfterSale: window.Bakery.createAfterSaleRecovery({ runtime, storage, owner: true })
+    };
+  },
   get session() { return state.session; },
   get isStaff() { return Boolean(state.session && state.session.staffRole); },
   get isOwner() { return Boolean(state.session && state.session.staffRole === 'owner'); },
@@ -126,6 +156,8 @@ const ctx = {
   },
   async logout() {
     await postJson('/api/logout', {});
+    // 退出时清掉本机草稿，避免下一位使用者看到上一位的结算意图。
+    try { await storage.clearNamespace(CHECKOUT_NAMESPACE); } catch (_) { /* 存储不可用时忽略 */ }
     state.session = { authenticated: false };
     state.api = null;
     state.cartCount = 0;

@@ -1,6 +1,6 @@
 import {
   el, clear, money, formatTime, statusBadge, DELIVERY_TEXT,
-  pageHead, empty, errorToast, toast, requestId, field
+  pageHead, empty, errorToast, toast, requestId
 } from '../ui.js';
 
 const TABS = [
@@ -45,14 +45,64 @@ export async function render(ctx, mount) {
     }
     orders = page.items;
     draw();
+    try {
+      const pending = await ctx.recovery().fulfillment.inspect();
+      if (pending) box.prepend(pendingBanner(pending));
+    } catch (error) {
+      if (error.code !== 'INVALID_FULFILLMENT_RECORD') toast(error.message || '本机草稿不可读', 'error');
+    }
   }
 
+  /**
+   * 履约动作走恢复协议：先落草稿再发送，结果不明时可用同一 requestId 重试，
+   * 不会因为网络中断而把同一动作做两遍。
+   */
   async function act(action, order, extra = {}) {
-    await ctx.api.fulfillment[action]({
-      orderId: order._id, expectedVersion: order.version, requestId: requestId(), ...extra
+    const recovery = ctx.recovery().fulfillment;
+    await recovery.prepare({
+      action, payload: { orderId: order._id, expectedVersion: order.version, requestId: requestId(), ...extra }
     });
+    const { result } = await recovery.submit();
     toast('操作成功', 'ok');
     await load();
+    return result;
+  }
+
+  /** 上次履约动作结果未确认时，在顶部给出找回入口。 */
+  function pendingBanner(pending) {
+    const box = el('div', { class: 'card', style: 'border-color:#e3c3bd;background:#fdf6f4' },
+      el('h2', {}, '上次履约操作结果未确认'),
+      el('p', { style: 'margin:0;color:#6b5a46' },
+        '请求已发出但没有收到确认。点“重试找回”会用同一个请求重发，不会重复执行。'),
+      el('div', { class: 'actions', style: 'margin-top:12px' }));
+    const retry = el('button', { class: 'primary' }, '重试找回');
+    retry.addEventListener('click', async () => {
+      retry.disabled = true;
+      try {
+        const { result } = await ctx.recovery().fulfillment.submit();
+        toast('已找回：订单当前为 ' + (result?.status || '已更新'), 'ok');
+        await load();
+      } catch (error) {
+        errorToast(error);
+        retry.disabled = false;
+      }
+    });
+    const drop = el('button', { class: 'danger' }, '放弃并继续');
+    drop.addEventListener('click', async () => {
+      const question = '放弃后不再保留这次动作的记录；如果服务端已经执行，订单状态会体现在列表里。确定放弃？';
+      if (!window.confirm(question)) return;
+      drop.disabled = true;
+      try {
+        await ctx.recovery().fulfillment.discard({ acknowledgeUncertain: true });
+        await load();
+      } catch (error) {
+        errorToast(error);
+        drop.disabled = false;
+      }
+    });
+    box.lastChild.appendChild(retry);
+    box.lastChild.appendChild(drop);
+    return box;
   }
 
   function draw() {

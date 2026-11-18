@@ -195,7 +195,12 @@ async function detail(ctx, mount, orderId) {
       if (!text) { toast('请填写售后原因', 'error'); return; }
       submit.disabled = true;
       try {
-        await ctx.api.afterSales.apply({ orderId: currentOrder._id, requestId: requestId(), reason: text });
+        // 走恢复协议：结果不明时可原样重试，不会重复开售后单。
+        const recovery = ctx.recovery().afterSale;
+        await recovery.prepare({
+          type: 'apply', payload: { orderId: currentOrder._id, requestId: requestId(), reason: text }
+        });
+        await recovery.submit();
         toast('售后申请已提交，等待店主审核', 'ok');
         await reload();
       } catch (error) { errorToast(error); submit.disabled = false; }

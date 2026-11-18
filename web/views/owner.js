@@ -289,10 +289,12 @@ async function afterSales(ctx, mount) {
         if (!note.value.trim()) { toast('请填写审核说明', 'error'); return; }
         approve.disabled = true; reject.disabled = true;
         try {
-          await ctx.api.afterSales.review({
+          const recovery = ctx.recovery().ownerAfterSale;
+          await recovery.prepare({ type: 'review', payload: {
             afterSaleId: record._id, expectedVersion: record.version,
             requestId: requestId(), decision, reason: note.value.trim()
-          });
+          } });
+          await recovery.submit();
           toast('审核已提交', 'ok');
           await afterSales(ctx, mount);
         } catch (error) {
@@ -316,6 +318,7 @@ async function afterSales(ctx, mount) {
         if (!ok) return;
         refund.disabled = true;
         try {
+          // 退款保持带乐观锁的直连调用：服务端按 afterSaleId 幂等，重复点击不会重复退款。
           await ctx.api.refunds.executeApproved({ afterSaleId: record._id, expectedOrderVersion: order.version });
           toast('退款已完成（模拟）', 'ok');
           await afterSales(ctx, mount);

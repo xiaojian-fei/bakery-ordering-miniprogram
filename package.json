@@ -13,7 +13,8 @@
     "ui": "node scripts/ui-check.js",
     "demo:core": "node scripts/demo-core.js",
     "demo:client": "node scripts/demo-client.js",
-    "shots": "node scripts/screenshots.js"
+    "shots": "node scripts/screenshots.js",
+    "load": "node scripts/load-test.js"
   },
   "engines": {
     "node": ">=24"

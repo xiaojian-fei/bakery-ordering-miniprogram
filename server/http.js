@@ -225,7 +225,7 @@ function createHttpServer({ config, application, accounts, sessions, repository,
 
   async function handlePost(req, res, pathname) {
     if (pathname === '/api/register') {
-      throttle(req, 'register', 20, 5 * 60 * 1000);
+      throttle(req, 'register', config.authRateLimit, config.authRateWindowMs);
       const body = await readJson(req, config.maxBodyBytes);
       const account = await accounts.register({ username: body.username, password: body.password });
       const session = await sessions.create(account.openid, { userAgent: req.headers['user-agent'] || '' });
@@ -233,7 +233,7 @@ function createHttpServer({ config, application, accounts, sessions, repository,
         role: account.role, staffRole: null }, [sessions.cookie(session.token, session.expiresAt)]);
     }
     if (pathname === '/api/login') {
-      throttle(req, 'login', 20, 5 * 60 * 1000);
+      throttle(req, 'login', config.authRateLimit, config.authRateWindowMs);
       const body = await readJson(req, config.maxBodyBytes);
       const result = await accounts.login({
         username: body.username, password: body.password, userAgent: req.headers['user-agent'] || ''
