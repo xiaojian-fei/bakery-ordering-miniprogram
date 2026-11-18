@@ -26,9 +26,9 @@ function normalize(input) {
   return { type, payload };
 }
 
-function createAfterSaleRecovery({ runtime, wx, owner = false }) {
+function createAfterSaleRecovery({ runtime, storage, owner = false }) {
   return createOperationRecovery({
-    runtime, wx, scope: owner ? 'owner-after-sale' : 'customer-after-sale',
+    runtime, storage, scope: owner ? 'owner-after-sale' : 'customer-after-sale',
     errors: { invalid: 'INVALID_AFTER_SALE_RECORD', storage: 'AFTER_SALE_STORAGE_ERROR', pending: 'AFTER_SALE_RECOVERY_REQUIRED' },
     normalize(input) {
       const command = normalize(input);

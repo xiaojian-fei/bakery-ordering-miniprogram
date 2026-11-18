@@ -33,9 +33,9 @@ function command(input) {
   return { action, payload };
 }
 
-function createFulfillmentRecovery({ runtime, wx }) {
+function createFulfillmentRecovery({ runtime, storage }) {
   return createOperationRecovery({
-    runtime, wx, scope: 'fulfillment', normalize: command,
+    runtime, storage, scope: 'fulfillment', normalize: command,
     errors: { invalid: 'INVALID_FULFILLMENT_RECORD', storage: 'FULFILLMENT_STORAGE_ERROR', pending: 'FULFILLMENT_RECOVERY_REQUIRED' },
     send: original => original.action === 'reject'
       ? runtime.client.orders.reject(original.payload)

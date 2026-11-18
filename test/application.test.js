@@ -7,7 +7,7 @@ const { authFixture, DEMO_PASSWORD } = require('./support/auth-fixture');
 
 async function fixture() {
   const base = await authFixture();
-  // 假身份解析仅在测试存在；真实传输适配器必须验证微信上下文或服务端会话。
+  // 假身份解析仅在测试存在；真实传输适配器（server/http.js）只信任服务端会话解析出的 openid。
   const application = createApplication({ repository: base.repository, clock: base.clock,
     resolveIdentity: async context => ({ openid: context?.verifiedSubject, role: 'owner' }) });
   const call = (action, data, openid = 'buyer-demo', staffToken) => application.handle(

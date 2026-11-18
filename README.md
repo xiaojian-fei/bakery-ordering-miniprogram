@@ -48,7 +48,7 @@ OWNER_USERNAME=owner OWNER_PASSWORD='你的强口令123' npm start
 | 后端 | Node.js 内置 `node:http` 单体服务 | 静态资源、业务接口、上传同源提供 |
 | 数据库 | SQLite（`node:sqlite`） | 单文件、WAL、真实事务；每个集合一张具名表 |
 | 身份 | 用户名 + scrypt 口令 + HttpOnly 会话 Cookie | 员工令牌也只走 Cookie，页面脚本拿不到原文 |
-| 测试 | `node:test` | 226 项，可整体切换真实数据库运行 |
+| 测试 | `node:test` | 238 项，可整体切换真实数据库运行 |
 
 没有第三方运行时依赖，`package.json` 中没有 `dependencies`。
 
@@ -63,7 +63,7 @@ core/                业务核心（与平台无关，34 个业务动作）
 shared/              浏览器与 Node 共用的交易客户端
   trade-client.js      客户端 SDK（只依赖注入的 send）
   checkout-attempt.js  一次人工确认的结算意图，重试不重复下单
-  *-recovery.js        失败后恢复：结算、履约、售后
+  *-recovery.js        失败后恢复：结算、履约、售后（平台无关，存储由调用方注入）
 server/              网页端运行时
   index.js http.js accounts.js sessions.js config.js bundle.js db/
 web/                 前端页面（原生 ES 模块）
@@ -87,14 +87,14 @@ docs/                方案、架构、数据库、运行与验收文档
 ## 验证
 
 ```bash
-npm test              # 226 项：领域 + 仓储 + HTTP（内存夹具）
-npm run test:sqlite   # 226 项：同一批断言跑在真实 SQLite 上
+npm test              # 238 项：领域 + 仓储 + HTTP + 恢复协议（内存夹具）
+npm run test:sqlite   # 238 项：同一批断言跑在真实 SQLite 上
 npm run smoke         # 28 项端到端：注册→下单→支付→履约→售后→退款→统计→上传
 npm run smoke:verify  # 6 项：重启服务后订单、金额、事件流水仍在
 npm run ui            # 17 项无头浏览器验收（真实点击，检查零前端异常）
 ```
 
-当前实测：**226/226 + 28/28 + 6/6 + 17/17 全部通过**（Node 24.21 / SQLite 3.46.1 / 无头 Chromium）。
+当前实测：**238/238 + 28/28 + 6/6 + 17/17 全部通过**（Node 24.21 / SQLite 3.46.1 / 无头 Chromium）。
 
 ## 与迁移前相比删掉了什么
 
