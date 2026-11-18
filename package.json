@@ -12,7 +12,8 @@
     "smoke:verify": "node scripts/smoke-web.js verify",
     "ui": "node scripts/ui-check.js",
     "demo:core": "node scripts/demo-core.js",
-    "demo:client": "node scripts/demo-client.js"
+    "demo:client": "node scripts/demo-client.js",
+    "shots": "node scripts/screenshots.js"
   },
   "engines": {
     "node": ">=24"
