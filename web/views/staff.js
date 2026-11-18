@@ -28,17 +28,22 @@ export async function render(ctx, mount) {
     for (const tab of TABS) {
       chips.appendChild(el('button', {
         class: 'small' + (status === tab.value ? ' primary' : ''),
-        onclick: () => { status = tab.value; load(); }
+        onclick: () => { status = tab.value; drawChips(); load(); }   // 先移动高亮，再取数据
       }, tab.label));
     }
   }
 
+  // 快速切换标签时，先发出的请求可能后返回；只渲染最后一次请求的结果。
+  let loadSeq = 0;
   async function load() {
+    const seq = ++loadSeq;
     clear(box).appendChild(el('p', { class: 'loading' }, '加载中…'));
     let page;
     try {
       page = await ctx.api.orders.list({ manage: true, ...(status ? { status } : {}), limit: 30 });
+      if (seq !== loadSeq) return;
     } catch (error) {
+      if (seq !== loadSeq) return;
       clear(box).appendChild(el('div', { class: 'card' }, el('p', {}, error.message || '订单加载失败'),
         el('button', { onclick: load }, '重试')));
       return;

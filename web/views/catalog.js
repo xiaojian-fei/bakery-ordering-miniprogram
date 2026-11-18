@@ -27,6 +27,8 @@ export async function render(ctx, mount, param, route) {
 async function list(ctx, mount) {
   let keyword = '';
   let category = '';
+  // 分类集合一旦发现就保留：筛选只改变高亮与列表，不改变可选项。
+  const knownCategories = new Set();
 
   clear(mount);
   const grid = el('div', { class: 'grid products' }, el('p', { class: 'loading' }, '加载中…'));
@@ -44,7 +46,10 @@ async function list(ctx, mount) {
     timer = setTimeout(() => { keyword = search.value.trim(); load(); }, 260);
   });
 
+  // 快速切换分类或连续输入关键词时，只采用最后一次请求的结果。
+  let loadSeq = 0;
   async function load() {
+    const seq = ++loadSeq;
     clear(grid).appendChild(el('p', { class: 'loading' }, '加载中…'));
     let data;
     try {
@@ -53,13 +58,16 @@ async function list(ctx, mount) {
         ...(category ? { category } : {}),
         limit: 50
       });
+      if (seq !== loadSeq) return;
     } catch (error) {
+      if (seq !== loadSeq) return;
       clear(grid).appendChild(el('div', { class: 'card' },
         el('p', {}, '商品加载失败：' + (error.message || '请稍后重试')),
         el('button', { onclick: load }, '重试')));
       return;
     }
-    renderChips(data.items);
+    for (const item of data.items) if (item.category) knownCategories.add(item.category);
+    renderChips();
     clear(grid);
     if (data.items.length === 0) {
       grid.appendChild(empty(keyword || category ? '没有匹配的商品，换个关键词试试。' : '暂无可售商品。'));
@@ -68,8 +76,8 @@ async function list(ctx, mount) {
     for (const product of data.items) grid.appendChild(card(product));
   }
 
-  function renderChips(items) {
-    const categories = [...new Set(items.map(item => item.category).filter(Boolean))].sort();
+  function renderChips() {
+    const categories = [...knownCategories].sort();
     clear(chips);
     if (categories.length === 0) return;
     chips.appendChild(chip('全部', ''));
@@ -79,7 +87,8 @@ async function list(ctx, mount) {
   function chip(label, value) {
     return el('button', {
       class: 'small' + (category === value ? ' primary' : ''),
-      onclick: () => { category = value; load(); }
+      // 先切高亮再取数据，点击反馈不需要等网络
+      onclick: () => { category = value; renderChips(); load(); }
     }, label);
   }
 

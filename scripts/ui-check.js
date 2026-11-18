@@ -232,6 +232,25 @@ async function main() {
     check('顾客导航包含购物车与订单', /购物车/.test(catalog.nav) && /我的订单/.test(catalog.nav), catalog.nav);
     check('顶栏显示顾客身份', /顾客/.test(catalog.account), catalog.account);
 
+    const categoryChips = await evaluate(cdp, `(async () => {
+      const chips = () => [...document.querySelectorAll('#main > .actions > .actions > button')];
+      const before = chips().map(b => b.textContent);
+      const target = chips().find(b => b.textContent !== '全部');
+      if (!target) return { skipped: true, before };
+      target.click();
+      await __waitFor(() => document.querySelectorAll('#main .product').length > 0);
+      const active = chips().filter(b => b.className.includes('primary')).map(b => b.textContent);
+      const after = chips().map(b => b.textContent);
+      const all = chips().find(b => b.textContent === '全部');
+      all.click();
+      await __waitFor(() => document.querySelectorAll('#main .product').length > 0);
+      return { before, after, active, target: target.textContent };
+    })()`);
+    check('切换分类后其他分类仍然可见',
+      !categoryChips.skipped && categoryChips.after.length === categoryChips.before.length, categoryChips);
+    check('切换分类后高亮跟随所选项',
+      categoryChips.active?.length === 1 && categoryChips.active[0] === categoryChips.target, categoryChips.active);
+
     // 3. 加入购物车
     const added = await evaluate(cdp, `(async () => {
       [...document.querySelectorAll('.product button')].find(b => b.textContent === '加入购物车').click();
@@ -274,6 +293,22 @@ async function main() {
       return __text();
     })()`);
     check('模拟支付后订单进入待接单', /待接单/.test(paid), paid.slice(0, 120));
+
+    const orderTabs = await evaluate(cdp, `(async () => {
+      const tabs = () => [...document.querySelectorAll('#main > .actions > button')];
+      location.hash = '#/orders';
+      await __waitFor(() => /我的订单/.test(__text()));
+      await __waitFor(() => tabs().length >= 6);
+      tabs().find(b => b.textContent === '待支付').click();
+      await __waitFor(() => tabs().filter(b => b.className.includes('primary'))
+        .map(b => b.textContent).includes('待支付'));
+      const active = tabs().filter(b => b.className.includes('primary')).map(b => b.textContent);
+      tabs().find(b => b.textContent === '全部').click();
+      await __waitFor(() => document.querySelectorAll('#main .card').length > 0);
+      return { active };
+    })()`);
+    check('订单标签高亮跟随点击',
+      orderTabs.active.length === 1 && orderTabs.active[0] === '待支付', orderTabs.active);
 
     // 7. 结算草稿找回入口：注入一份待提交草稿后重载结算页
     await evaluate(cdp, `(async () => {
@@ -323,6 +358,21 @@ async function main() {
       return { text: __text(), empty, drafts: __drafts() };
     })()`);
     check('店员进入履约工作台', /履约工作台/.test(staffView.text), staffView.text.slice(0, 120));
+
+    const staffTabs = await evaluate(cdp, `(async () => {
+      const tabs = () => [...document.querySelectorAll('#main > .actions > button')];
+      tabs().find(b => b.textContent === '已接单待履约').click();
+      await __waitFor(() => tabs().filter(b => b.className.includes('primary'))
+        .map(b => b.textContent).includes('已接单待履约'));
+      const active = tabs().filter(b => b.className.includes('primary')).map(b => b.textContent);
+      tabs().find(b => b.textContent === '待接单').click();
+      // 等列表真正加载完再返回，避免后续步骤抓到“加载中”
+      await __waitFor(() => [...document.querySelectorAll('#main button')]
+        .some(b => b.textContent === '接单'), 12000);
+      return { active };
+    })()`);
+    check('履约标签高亮跟随点击',
+      staffTabs.active.length === 1 && staffTabs.active[0] === '已接单待履约', staffTabs.active);
     check('店员可见刚支付的订单', staffView.text.includes(orderId.slice(0, 8)) || /接单/.test(staffView.text),
       staffView.text.slice(0, 200));
 
